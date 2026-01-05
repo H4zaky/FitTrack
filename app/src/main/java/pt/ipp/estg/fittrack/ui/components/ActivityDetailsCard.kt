@@ -14,8 +14,13 @@ import androidx.compose.ui.unit.dp
 data class ActivityDetailsUi(
     val title: String,
     val subtitle: String,
-    val distanceKm: Double? = null,
-    val durationMin: Int? = null
+    val distanceKm: Double,
+    val durationMin: Int,
+
+    val avgSpeedKmh: Double? = null,
+    val elevationGainM: Double? = null,
+    val start: String? = null,
+    val end: String? = null
 )
 
 @Composable
@@ -31,12 +36,26 @@ fun ActivityDetailsCard(
             Spacer(Modifier.height(4.dp))
             Text(details.subtitle, style = MaterialTheme.typography.bodyMedium)
 
-            details.distanceKm?.let {
+            Spacer(Modifier.height(8.dp))
+            Text("Distância: %.2f km".format(details.distanceKm))
+            Text("Duração: ${details.durationMin} min")
+
+            details.avgSpeedKmh?.let {
                 Spacer(Modifier.height(8.dp))
-                Text("Distância: %.2f km".format(it))
+                Text("Vel. média: %.1f km/h".format(it))
             }
-            details.durationMin?.let {
-                Text("Duração: ${it} min")
+
+            details.elevationGainM?.let {
+                Text("Elevação: +%.0f m".format(it))
+            }
+
+            details.start?.let {
+                Spacer(Modifier.height(8.dp))
+                Text("Início: $it")
+            }
+
+            details.end?.let {
+                Text("Fim: $it")
             }
         }
     }

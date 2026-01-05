@@ -1,0 +1,25 @@
+package pt.ipp.estg.fittrack.data.local.entity
+
+import androidx.room.Entity
+import androidx.room.PrimaryKey
+
+@Entity(tableName = "activity_sessions")
+data class ActivitySessionEntity(
+    @PrimaryKey val id: String,
+
+    val title: String,
+    val type: String,                 // Walking/Running/Other...
+    val startTs: Long,
+    val endTs: Long?,
+
+    val distanceKm: Double,
+    val durationMin: Int,
+
+    val mode: String = "MANUAL",      // MANUAL/AUTO
+    val startLat: Double? = null,
+    val startLon: Double? = null,
+    val endLat: Double? = null,
+    val endLon: Double? = null,
+    val avgSpeedMps: Double = 0.0,
+    val elevationGainM: Double = 0.0
+)
