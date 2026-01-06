@@ -22,7 +22,9 @@ import pt.ipp.estg.fittrack.data.local.entity.TrackPointEntity
 fun HistoryMap(
     sessionId: String?,
     trackPointDao: TrackPointDao,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    startTitle: String = "Início",
+    endTitle: String = "Fim",
 ) {
     var points by remember { mutableStateOf<List<TrackPointEntity>>(emptyList()) }
 
@@ -58,17 +60,11 @@ fun HistoryMap(
         cameraPositionState = cameraState
     ) {
         if (startPos != null) {
-            Marker(
-                state = startState,
-                title = "Início"
-            )
+            Marker(state = startState, title = startTitle)
         }
 
         if (endPos != null) {
-            Marker(
-                state = endState,
-                title = "Fim"
-            )
+            Marker(state = endState, title = endTitle)
         }
 
         if (latLngs.size >= 2) {
