@@ -8,6 +8,8 @@ import pt.ipp.estg.fittrack.data.local.entity.TrackPointEntity
 
 @Dao
 interface TrackPointDao {
+    @androidx.room.Insert
+    suspend fun insertAll(points: List<TrackPointEntity>)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(point: TrackPointEntity)

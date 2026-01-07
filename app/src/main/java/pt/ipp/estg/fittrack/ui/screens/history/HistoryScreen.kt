@@ -1,16 +1,28 @@
 package pt.ipp.estg.fittrack.ui.screens.history
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.ListItem
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -25,12 +37,6 @@ import java.util.Locale
 
 private enum class HistoryMode { LIST, MAP }
 
-private fun formatTime(ts: Long?): String? {
-    if (ts == null) return null
-    val fmt = SimpleDateFormat("HH:mm", Locale.getDefault())
-    return fmt.format(Date(ts))
-}
-
 @Composable
 fun HistoryScreen() {
     val context = LocalContext.current
@@ -42,19 +48,6 @@ fun HistoryScreen() {
     var sessions by remember { mutableStateOf<List<ActivitySessionEntity>>(emptyList()) }
     var selected by remember { mutableStateOf<ActivitySessionEntity?>(null) }
 
-    val listState = rememberLazyListState()
-
-    fun toDetails(s: ActivitySessionEntity) = ActivityDetailsUi(
-        title = s.title,
-        subtitle = "${s.type} • ${s.durationMin} min • ${s.mode}",
-        distanceKm = s.distanceKm,
-        durationMin = s.durationMin,
-        avgSpeedKmh = if (s.avgSpeedMps > 0) s.avgSpeedMps * 3.6 else null,
-        elevationGainM = if (s.elevationGainM > 0) s.elevationGainM else null,
-        start = "Início: ${formatTime(s.startTs)}",
-        end = "Fim: ${formatTime(s.endTs) ?: "Em curso"}"
-    )
-
     suspend fun refresh() {
         sessions = activityDao.getAll()
         selected = selected ?: sessions.firstOrNull()
@@ -64,34 +57,42 @@ fun HistoryScreen() {
 
     val tabIndex = if (mode == HistoryMode.LIST) 0 else 1
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(start = 12.dp, end = 12.dp, bottom = 12.dp)
-    ) {
-        TabRow(selectedTabIndex = tabIndex) {
-            Tab(
-                selected = tabIndex == 0,
-                onClick = { mode = HistoryMode.LIST },
-                text = { Text("Lista") }
-            )
-            Tab(
-                selected = tabIndex == 1,
-                onClick = { mode = HistoryMode.MAP },
-                text = { Text("Mapa") }
-            )
+    Scaffold(
+        bottomBar = {
+            if (mode == HistoryMode.LIST) {
+                Column(
+                    Modifier
+                        .fillMaxWidth()
+                        .navigationBarsPadding()
+                        .padding(horizontal = 12.dp, vertical = 10.dp)
+                ) {
+                    ActivityDetailsCard(
+                        details = selected?.let(::toDetails),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
         }
+    ) { padding ->
+        Column(
+            Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(horizontal = 12.dp)
+        ) {
+            TabRow(selectedTabIndex = tabIndex) {
+                Tab(selected = tabIndex == 0, onClick = { mode = HistoryMode.LIST }, text = { Text("Lista") })
+                Tab(selected = tabIndex == 1, onClick = { mode = HistoryMode.MAP }, text = { Text("Mapa") })
+            }
 
-        Spacer(Modifier.height(6.dp))
+            Spacer(Modifier.height(8.dp))
 
-        Box(Modifier.weight(1f).fillMaxWidth()) {
             when (mode) {
                 HistoryMode.LIST -> {
                     if (sessions.isEmpty()) {
                         Text("Sem atividades ainda. Vai a Atividade e faz Start/Stop.")
                     } else {
                         LazyColumn(
-                            state = listState,
                             modifier = Modifier.fillMaxSize(),
                             contentPadding = PaddingValues(bottom = 12.dp)
                         ) {
@@ -110,34 +111,35 @@ fun HistoryScreen() {
                 }
 
                 HistoryMode.MAP -> {
-                    val s = selected
-                    if (s == null) {
-                        Text("Seleciona uma atividade na Lista.")
-                    } else {
-                        // títulos com horas no próprio marker
-                        val startTitle = "Início ${formatTime(s.startTs) ?: ""}".trim()
-                        val endTitle = "Fim ${formatTime(s.endTs) ?: ""}".trim()
-
-                        HistoryMap(
-                            sessionId = s.id,
-                            trackPointDao = trackPointDao,
-                            modifier = Modifier.fillMaxSize(),
-                            startTitle = startTitle,
-                            endTitle = endTitle
-                        )
-                    }
+                    HistoryMap(
+                        sessionId = selected?.id,
+                        trackPointDao = trackPointDao,
+                        modifier = Modifier.fillMaxSize()
+                    )
                 }
             }
         }
-
-        if (mode == HistoryMode.LIST) {
-            Spacer(Modifier.height(10.dp))
-            ActivityDetailsCard(
-                details = selected?.let(::toDetails),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .navigationBarsPadding()
-            )
-        }
     }
+}
+
+private fun toDetails(s: ActivitySessionEntity): ActivityDetailsUi {
+    fun fmt(ts: Long?): String? {
+        if (ts == null) return null
+        val f = SimpleDateFormat("HH:mm", Locale.getDefault())
+        return f.format(Date(ts))
+    }
+
+    val avgKmh = if (s.avgSpeedMps > 0) s.avgSpeedMps * 3.6 else null
+    val elev = if (s.elevationGainM > 0) s.elevationGainM else null
+
+    return ActivityDetailsUi(
+        title = s.title,
+        subtitle = "${s.type} • ${s.durationMin} min • ${s.mode}",
+        distanceKm = s.distanceKm,
+        durationMin = s.durationMin,
+        avgSpeedKmh = avgKmh,
+        elevationGainM = elev,
+        start = fmt(s.startTs)?.let { "Início: $it" },
+        end = fmt(s.endTs)?.let { "Fim: $it" }
+    )
 }

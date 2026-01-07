@@ -1,6 +1,7 @@
 package pt.ipp.estg.fittrack.core.tracking
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -28,8 +29,9 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import pt.ipp.estg.fittrack.MainActivity
 import pt.ipp.estg.fittrack.R
-import pt.ipp.estg.fittrack.data.local.entity.ActivitySessionEntity
+import pt.ipp.estg.fittrack.core.steps.StepCounterManager
 import pt.ipp.estg.fittrack.data.local.db.DbProvider
+import pt.ipp.estg.fittrack.data.local.entity.ActivitySessionEntity
 import pt.ipp.estg.fittrack.data.local.entity.TrackPointEntity
 import kotlin.math.max
 
@@ -37,7 +39,7 @@ class TrackingService : Service() {
 
     companion object {
         const val ACTION_START = "pt.ipp.estg.fittrack.TRACKING_START"
-        const val ACTION_STOP = "pt.ipp.estg.fittrack.TRACKING_STOP"
+        const val ACTION_STOP  = "pt.ipp.estg.fittrack.TRACKING_STOP"
 
         const val EXTRA_SESSION_ID = "session_id"
         const val EXTRA_TYPE = "type"
@@ -65,61 +67,76 @@ class TrackingService : Service() {
 
     private var distanceM: Double = 0.0
     private var elevationGainM: Double = 0.0
-    private var startSet: Boolean = false
+    private var startSet = false
     private var currentSpeedMps: Float = 0f
 
+    // batch points
+    private var lastSavedLoc: Location? = null
+    private var lastSavedTs: Long = 0L
+    private val pendingPoints = mutableListOf<TrackPointEntity>()
+    private var flushJob: Job? = null
+
+    // notification ticker
     private var tickerJob: Job? = null
+
+    // activity type for location priority
+    private var activeType: String = "Walking"
+
+    // steps
+    private var stepManager: StepCounterManager? = null
+    private var currentSteps: Int = 0
 
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onCreate() {
         super.onCreate()
         ensureChannel()
+
+        stepManager = StepCounterManager(this) { delta ->
+            currentSteps = delta
+            TrackingPrefs.setActiveSteps(this, delta)
+        }
     }
 
     override fun onDestroy() {
         stopTicker()
+        stopFlushLoop()
         stopLocationUpdates()
+        stepManager?.stop()
         serviceScope.cancel()
         super.onDestroy()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        // ✅ Se o sistema reiniciar o service com intent null, tentamos retomar
-        if (intent == null || intent.action == null) {
+        if (intent?.action == null) {
             resumeIfNeeded()
             return START_STICKY
         }
-
         when (intent.action) {
             ACTION_START -> startTracking(intent)
-            ACTION_STOP -> stopTracking()
+            ACTION_STOP  -> stopTracking()
         }
         return START_STICKY
     }
 
     private fun resumeIfNeeded() {
         val sid = TrackingPrefs.getActiveSessionId(this) ?: run {
-            stopSelf()
-            return
+            stopSelf(); return
         }
-        val st = TrackingPrefs.getActiveStartTs(this)
-        val type = TrackingPrefs.getActiveType(this)
 
         sessionId = sid
-        startTs = if (st > 0L) st else System.currentTimeMillis().also { TrackingPrefs.setActiveStartTs(this, it) }
+        startTs = TrackingPrefs.getActiveStartTs(this).takeIf { it > 0L }
+            ?: System.currentTimeMillis().also { TrackingPrefs.setActiveStartTs(this, it) }
 
-        // restaurar métricas mínimas (não perdes UI ao reabrir)
+        activeType = TrackingPrefs.getActiveType(this)
         distanceM = TrackingPrefs.getActiveDistanceM(this)
         currentSpeedMps = TrackingPrefs.getActiveSpeedMps(this)
+        currentSteps = TrackingPrefs.getActiveSteps(this)
 
         startForeground(NOTIF_ID, buildNotification(buildContent()))
+        stepManager?.start()
         startTicker()
-
-        if (!hasLocationPermission()) {
-            stopTracking()
-            return
-        }
+        startFlushLoop()
         startLocationUpdates()
     }
 
@@ -130,15 +147,18 @@ class TrackingService : Service() {
         val mode = intent.getStringExtra(EXTRA_MODE) ?: "MANUAL"
 
         sessionId = sid
+        activeType = type
         startTs = System.currentTimeMillis()
 
-        // ✅ persistir estado
+        // persist state
         TrackingPrefs.setActiveSessionId(this, sid)
         TrackingPrefs.setActiveStartTs(this, startTs)
         TrackingPrefs.setActiveType(this, type)
         TrackingPrefs.setActiveDistanceM(this, 0.0)
         TrackingPrefs.setActiveSpeedMps(this, 0f)
+        TrackingPrefs.setActiveSteps(this, 0)
 
+        // reset runtime
         lastLoc = null
         lastPointTs = 0L
         distanceM = 0.0
@@ -146,9 +166,15 @@ class TrackingService : Service() {
         startSet = false
         currentSpeedMps = 0f
 
+        lastSavedLoc = null
+        lastSavedTs = 0L
+        pendingPoints.clear()
+
+        currentSteps = 0
+        stepManager?.start()
+
         serviceScope.launch {
-            val existing = activityDao.getById(sid)
-            if (existing == null) {
+            if (activityDao.getById(sid) == null) {
                 activityDao.upsert(
                     ActivitySessionEntity(
                         id = sid,
@@ -172,27 +198,25 @@ class TrackingService : Service() {
 
         startForeground(NOTIF_ID, buildNotification(buildContent()))
         startTicker()
-
-        if (!hasLocationPermission()) {
-            stopTracking()
-            return
-        }
+        startFlushLoop()
         startLocationUpdates()
     }
 
     private fun stopTracking() {
-        val sid = sessionId ?: run {
-            stopSelf()
-            return
-        }
+        val sid = sessionId ?: run { stopSelf(); return }
 
         stopTicker()
         stopLocationUpdates()
+        stepManager?.stop()
+
+        // flush final
+        serviceScope.launch { flushPendingPoints() }
 
         val endTs = System.currentTimeMillis()
         val durationMin = ((endTs - startTs) / 60000L).toInt().coerceAtLeast(0)
         val distanceKm = distanceM / 1000.0
-        val avgSpeedMps = if (endTs > startTs) distanceM / max(1.0, (endTs - startTs) / 1000.0) else 0.0
+        val avgSpeedMps =
+            if (endTs > startTs) distanceM / max(1.0, (endTs - startTs) / 1000.0) else 0.0
 
         val endLat = lastLoc?.latitude
         val endLon = lastLoc?.longitude
@@ -210,6 +234,7 @@ class TrackingService : Service() {
             )
         }
 
+        stopFlushLoop()
         TrackingPrefs.clear(this)
         sessionId = null
 
@@ -217,9 +242,20 @@ class TrackingService : Service() {
         stopSelf()
     }
 
+    @SuppressLint("MissingPermission")
     private fun startLocationUpdates() {
-        val request = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 2000L)
-            .setMinUpdateDistanceMeters(3f)
+        if (!hasLocationPermission()) {
+            stopTracking()
+            return
+        }
+
+        val isRunning = activeType.equals("Running", ignoreCase = true)
+        val priority = if (isRunning) Priority.PRIORITY_HIGH_ACCURACY else Priority.PRIORITY_BALANCED_POWER_ACCURACY
+        val minDist = if (isRunning) 3f else 5f
+
+        val request = LocationRequest.Builder(priority, 2000L)
+            .setMinUpdateDistanceMeters(minDist)
+            .setMaxUpdateDelayMillis(10_000L)
             .build()
 
         callback = object : LocationCallback() {
@@ -229,12 +265,19 @@ class TrackingService : Service() {
             }
         }
 
-        fused.requestLocationUpdates(request, callback!!, mainLooper)
+        try {
+            fused.requestLocationUpdates(request, callback!!, mainLooper)
+        } catch (_: SecurityException) {
+            stopTracking()
+        }
     }
 
     private fun stopLocationUpdates() {
-        callback?.let { fused.removeLocationUpdates(it) }
+        val cb = callback ?: return
         callback = null
+        try {
+            fused.removeLocationUpdates(cb)
+        } catch (_: SecurityException) { }
     }
 
     private fun onNewLocation(loc: Location) {
@@ -245,19 +288,15 @@ class TrackingService : Service() {
         if (prev != null) {
             distanceM += prev.distanceTo(loc).toDouble()
 
-            // elevação acumulada só se ambos tiverem altitude
             if (prev.hasAltitude() && loc.hasAltitude()) {
                 val dAlt = loc.altitude - prev.altitude
                 if (!dAlt.isNaN() && dAlt > 0) elevationGainM += dAlt
             }
 
-            // velocidade: preferir a do GPS, senão calcular
-            currentSpeedMps = if (loc.hasSpeed()) {
-                loc.speed
-            } else {
+            currentSpeedMps = if (loc.hasSpeed()) loc.speed else {
                 val dt = (now - lastPointTs).coerceAtLeast(1L) / 1000f
                 val d = prev.distanceTo(loc)
-                (d / dt)
+                d / dt
             }
         } else {
             currentSpeedMps = if (loc.hasSpeed()) loc.speed else 0f
@@ -268,29 +307,65 @@ class TrackingService : Service() {
 
         if (!startSet) {
             startSet = true
-            serviceScope.launch {
-                activityDao.setStartLocation(sid, loc.latitude, loc.longitude)
-            }
+            serviceScope.launch { activityDao.setStartLocation(sid, loc.latitude, loc.longitude) }
         }
 
-        // ✅ persistir “ao vivo” para UI não perder ao fechar
         TrackingPrefs.setActiveDistanceM(this, distanceM)
         TrackingPrefs.setActiveSpeedMps(this, currentSpeedMps)
 
-        serviceScope.launch {
-            pointDao.insert(
-                TrackPointEntity(
-                    sessionId = sid,
-                    ts = now,
-                    lat = loc.latitude,
-                    lon = loc.longitude,
-                    accuracyM = if (loc.hasAccuracy()) loc.accuracy else null,
-                    speedMps = currentSpeedMps,
-                    altitudeM = if (loc.hasAltitude()) loc.altitude else null
-                )
+        val shouldSave = shouldSavePoint(now, loc)
+        if (shouldSave) {
+            lastSavedLoc = loc
+            lastSavedTs = now
+
+            pendingPoints += TrackPointEntity(
+                sessionId = sid,
+                ts = now,
+                lat = loc.latitude,
+                lon = loc.longitude,
+                accuracyM = if (loc.hasAccuracy()) loc.accuracy else null,
+                speedMps = currentSpeedMps,
+                altitudeM = if (loc.hasAltitude()) loc.altitude else null
             )
+
+            if (pendingPoints.size >= 10) {
+                serviceScope.launch { flushPendingPoints() }
+            }
         }
-        // notificação é atualizada pelo ticker
+    }
+
+    private fun shouldSavePoint(now: Long, loc: Location): Boolean {
+        val last = lastSavedLoc ?: return true
+        val dt = now - lastSavedTs
+        val dist = last.distanceTo(loc)
+
+        val isRunning = activeType.equals("Running", ignoreCase = true)
+        val minTime = if (isRunning) 3000L else 5000L
+        val minDist = if (isRunning) 6f else 8f
+
+        return (dt >= minTime) || (dist >= minDist)
+    }
+
+    private fun startFlushLoop() {
+        flushJob?.cancel()
+        flushJob = serviceScope.launch {
+            while (isActive && sessionId != null) {
+                delay(15_000L)
+                flushPendingPoints()
+            }
+        }
+    }
+
+    private fun stopFlushLoop() {
+        flushJob?.cancel()
+        flushJob = null
+    }
+
+    private suspend fun flushPendingPoints() {
+        if (pendingPoints.isEmpty()) return
+        val copy = pendingPoints.toList()
+        pendingPoints.clear()
+        pointDao.insertAll(copy)
     }
 
     private fun startTicker() {
@@ -299,7 +374,7 @@ class TrackingService : Service() {
             while (isActive && sessionId != null) {
                 val nm = getSystemService(NotificationManager::class.java)
                 nm.notify(NOTIF_ID, buildNotification(buildContent()))
-                delay(1000)
+                delay(4000L)
             }
         }
     }
@@ -358,8 +433,10 @@ class TrackingService : Service() {
     }
 
     private fun hasLocationPermission(): Boolean {
-        val fine = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
-        val coarse = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        val fine = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) ==
+                PackageManager.PERMISSION_GRANTED
+        val coarse = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) ==
+                PackageManager.PERMISSION_GRANTED
         return fine || coarse
     }
 }

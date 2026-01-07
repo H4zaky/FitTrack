@@ -42,6 +42,21 @@ object DbProvider {
         }
     }
 
+    private val MIGRATION_3_4 = object : Migration(3, 4) {
+        override fun migrate(database: SupportSQLiteDatabase) {
+            database.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS friends (
+                    phone TEXT NOT NULL,
+                    name TEXT NOT NULL,
+                    createdAt INTEGER NOT NULL,
+                    PRIMARY KEY(phone)
+                )
+                """.trimIndent()
+            )
+        }
+    }
+
     fun get(context: Context): FitTrackDb =
         db ?: synchronized(this) {
             db ?: Room.databaseBuilder(
@@ -49,7 +64,7 @@ object DbProvider {
                 FitTrackDb::class.java,
                 "fittrack.db"
             )
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                 .build()
                 .also { db = it }
         }
