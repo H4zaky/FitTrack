@@ -109,9 +109,11 @@ class TrackingService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == null) {
+
             resumeIfNeeded()
             return START_STICKY
         }
+
         when (intent.action) {
             ACTION_START -> startTracking(intent)
             ACTION_STOP  -> stopTracking()
@@ -122,7 +124,10 @@ class TrackingService : Service() {
     private fun resumeIfNeeded() {
         val sid = TrackingPrefs.getActiveSessionId(this) ?: run {
             stopSelf(); return
+
         }
+
+
 
         sessionId = sid
         startTs = TrackingPrefs.getActiveStartTs(this).takeIf { it > 0L }
@@ -137,6 +142,10 @@ class TrackingService : Service() {
         stepManager?.start()
         startTicker()
         startFlushLoop()
+
+
+
+
         startLocationUpdates()
     }
 
@@ -175,6 +184,7 @@ class TrackingService : Service() {
 
         serviceScope.launch {
             if (activityDao.getById(sid) == null) {
+
                 activityDao.upsert(
                     ActivitySessionEntity(
                         id = sid,
@@ -199,11 +209,18 @@ class TrackingService : Service() {
         startForeground(NOTIF_ID, buildNotification(buildContent()))
         startTicker()
         startFlushLoop()
+
+
+
+
         startLocationUpdates()
     }
 
     private fun stopTracking() {
         val sid = sessionId ?: run { stopSelf(); return }
+
+
+
 
         stopTicker()
         stopLocationUpdates()
@@ -288,12 +305,16 @@ class TrackingService : Service() {
         if (prev != null) {
             distanceM += prev.distanceTo(loc).toDouble()
 
+
             if (prev.hasAltitude() && loc.hasAltitude()) {
                 val dAlt = loc.altitude - prev.altitude
                 if (!dAlt.isNaN() && dAlt > 0) elevationGainM += dAlt
             }
 
             currentSpeedMps = if (loc.hasSpeed()) loc.speed else {
+
+
+
                 val dt = (now - lastPointTs).coerceAtLeast(1L) / 1000f
                 val d = prev.distanceTo(loc)
                 d / dt
@@ -308,7 +329,10 @@ class TrackingService : Service() {
         if (!startSet) {
             startSet = true
             serviceScope.launch { activityDao.setStartLocation(sid, loc.latitude, loc.longitude) }
+
+
         }
+
 
         TrackingPrefs.setActiveDistanceM(this, distanceM)
         TrackingPrefs.setActiveSpeedMps(this, currentSpeedMps)

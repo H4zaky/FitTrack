@@ -1,51 +1,31 @@
 package pt.ipp.estg.fittrack.core.recognition
 
-import android.Manifest
-import android.app.PendingIntent
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
-import android.os.Build
-import androidx.core.content.ContextCompat
-import com.google.android.gms.location.ActivityRecognition
+import com.google.android.gms.location.ActivityRecognitionResult
+import com.google.android.gms.location.DetectedActivity
+import pt.ipp.estg.fittrack.core.tracking.TrackingPrefs
 
-object ActivityRecognitionController {
+class ActivityRecognitionReceiver : BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent) {
+        val result = ActivityRecognitionResult.extractResult(intent) ?: return
+        val best = result.probableActivities.maxByOrNull { it.confidence } ?: return
 
-    private const val INTERVAL_MS = 5_000L
-
-    private fun pendingIntent(context: Context): PendingIntent {
-        val intent = Intent(context, ActivityRecognitionReceiver::class.java).apply {
-            action = "pt.ipp.estg.fittrack.ACTIVITY_RECOGNITION"
+        val type = when (best.type) {
+            DetectedActivity.WALKING -> "Walking"
+            DetectedActivity.RUNNING -> "Running"
+            DetectedActivity.ON_FOOT -> "On_foot"
+            DetectedActivity.IN_VEHICLE -> "In_vehicle"
+            DetectedActivity.STILL -> "Still"
+            else -> "Unknown"
         }
-        return PendingIntent.getBroadcast(
-            context,
-            5001,
-            intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+
+        TrackingPrefs.setLastDetected(
+            context = context,
+            type = type,
+            confidence = best.confidence,
+            ts = System.currentTimeMillis()
         )
-    }
-
-    fun start(context: Context) {
-        if (Build.VERSION.SDK_INT >= 29) {
-            val granted = ContextCompat.checkSelfPermission(
-                context,
-                Manifest.permission.ACTIVITY_RECOGNITION
-            ) == PackageManager.PERMISSION_GRANTED
-            if (!granted) return
-        }
-
-        try {
-            ActivityRecognition.getClient(context)
-                .requestActivityUpdates(INTERVAL_MS, pendingIntent(context))
-        } catch (_: SecurityException) {
-        }
-    }
-
-    fun stop(context: Context) {
-        try {
-            ActivityRecognition.getClient(context)
-                .removeActivityUpdates(pendingIntent(context))
-        } catch (_: SecurityException) {
-        }
     }
 }
