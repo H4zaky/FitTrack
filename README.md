@@ -54,7 +54,6 @@ Adicionalmente, a aplicação suporta **perfil do utilizador**, **adição de am
 
 # ÍNDICE DE FIGURAS
 
-> Substituir as imagens abaixo por **screenshots reais** da aplicação e do Firebase Console (Firestore).  
 - **Figura 1** — Fluxo entre as screens (Auth → Home → Registo → Histórico → Detalhe → Social/Rankings)  
 - **Figura 2** — Login Screen  
 - **Figura 3** — Register Screen  
