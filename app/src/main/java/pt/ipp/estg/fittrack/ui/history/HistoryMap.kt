@@ -1,20 +1,13 @@
 package pt.ipp.estg.fittrack.ui.history
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.LatLngBounds
-import com.google.maps.android.compose.GoogleMap
-import com.google.maps.android.compose.Marker
-import com.google.maps.android.compose.Polyline
-import com.google.maps.android.compose.rememberCameraPositionState
-import com.google.maps.android.compose.rememberUpdatedMarkerState
+import com.google.maps.android.compose.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import pt.ipp.estg.fittrack.data.local.dao.TrackPointDao
 import pt.ipp.estg.fittrack.data.local.entity.TrackPointEntity
 
@@ -29,13 +22,16 @@ fun HistoryMap(
     var points by remember { mutableStateOf<List<TrackPointEntity>>(emptyList()) }
 
     LaunchedEffect(sessionId) {
-        points = if (sessionId == null) emptyList() else trackPointDao.getBySession(sessionId)
+        points = if (sessionId == null) {
+            emptyList()
+        } else {
+            withContext(Dispatchers.IO) { trackPointDao.getBySession(sessionId) }
+        }
     }
 
     val latLngs = remember(points) { points.map { LatLng(it.lat, it.lon) } }
     val cameraState = rememberCameraPositionState()
 
-    // Estados dos markers (atualizam a posição sem recriar estado "à bruta")
     val startPos = latLngs.firstOrNull()
     val endPos = if (latLngs.size > 1) latLngs.last() else null
     val startState = rememberUpdatedMarkerState(position = startPos ?: LatLng(0.0, 0.0))
@@ -55,20 +51,9 @@ fun HistoryMap(
         }
     }
 
-    GoogleMap(
-        modifier = modifier,
-        cameraPositionState = cameraState
-    ) {
-        if (startPos != null) {
-            Marker(state = startState, title = startTitle)
-        }
-
-        if (endPos != null) {
-            Marker(state = endState, title = endTitle)
-        }
-
-        if (latLngs.size >= 2) {
-            Polyline(points = latLngs)
-        }
+    GoogleMap(modifier = modifier, cameraPositionState = cameraState) {
+        if (startPos != null) Marker(state = startState, title = startTitle)
+        if (endPos != null) Marker(state = endState, title = endTitle)
+        if (latLngs.size >= 2) Polyline(points = latLngs)
     }
 }

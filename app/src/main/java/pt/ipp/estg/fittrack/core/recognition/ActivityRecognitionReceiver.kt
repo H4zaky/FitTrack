@@ -5,25 +5,25 @@ import android.content.Context
 import android.content.Intent
 import com.google.android.gms.location.ActivityRecognitionResult
 import com.google.android.gms.location.DetectedActivity
-import pt.ipp.estg.fittrack.core.tracking.TrackingPrefs
 
 class ActivityRecognitionReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
+        if (!ActivityRecognitionResult.hasResult(intent)) return
         val result = ActivityRecognitionResult.extractResult(intent) ?: return
+
         val best = result.probableActivities.maxByOrNull { it.confidence } ?: return
 
-        val type = when (best.type) {
-            DetectedActivity.WALKING -> "Walking"
-            DetectedActivity.RUNNING -> "Running"
-            DetectedActivity.ON_FOOT -> "On_foot"
-            DetectedActivity.IN_VEHICLE -> "In_vehicle"
-            DetectedActivity.STILL -> "Still"
-            else -> "Unknown"
+        val detected = when (best.type) {
+            DetectedActivity.WALKING, DetectedActivity.ON_FOOT -> "walking"
+            DetectedActivity.RUNNING -> "running"
+            DetectedActivity.STILL -> "still"
+            DetectedActivity.IN_VEHICLE -> "in_vehicle"
+            else -> "unknown"
         }
 
-        TrackingPrefs.setLastDetected(
-            context = context,
-            type = type,
+        ActivityRecognitionController.handleDetection(
+            context = context.applicationContext,
+            detected = detected,
             confidence = best.confidence,
             ts = System.currentTimeMillis()
         )

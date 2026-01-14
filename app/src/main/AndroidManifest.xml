@@ -34,6 +34,14 @@
         <receiver
             android:name=".core.recognition.ActivityRecognitionReceiver"
             android:exported="false" />
+        <receiver
+            android:name=".core.system.BatteryLowReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BATTERY_LOW"/>
+                <action android:name="android.intent.action.BATTERY_OKAY"/>
+            </intent-filter>
+        </receiver>
         <activity
             android:name=".MainActivity"
             android:exported="true"

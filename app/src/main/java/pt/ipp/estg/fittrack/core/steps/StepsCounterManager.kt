@@ -12,31 +12,37 @@ class StepCounterManager(
 ) : SensorEventListener {
 
     private val sm = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
-    private val sensor: Sensor? = sm.getDefaultSensor(Sensor.TYPE_STEP_COUNTER)
+    private val stepSensor: Sensor? = sm.getDefaultSensor(Sensor.TYPE_STEP_COUNTER)
 
-    private var baseline: Float? = null
+    private var running = false
+    private var base: Float? = null
+    private var lastDelta = 0
 
     fun start() {
-        baseline = null
-        sensor?.let { sm.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL) }
+        if (running) return
+        running = true
+        base = null
+        lastDelta = 0
+        stepSensor?.let { sm.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL) }
     }
 
     fun stop() {
+        if (!running) return
+        running = false
         sm.unregisterListener(this)
-        baseline = null
     }
 
     override fun onSensorChanged(event: SensorEvent) {
+        if (!running) return
         val total = event.values.firstOrNull() ?: return
-        val base = baseline
-        if (base == null) {
-            baseline = total
-            onStepsDelta(0)
-            return
+        if (base == null) base = total
+
+        val delta = (total - (base ?: total)).toInt().coerceAtLeast(0)
+        if (delta != lastDelta) {
+            lastDelta = delta
+            onStepsDelta(delta)
         }
-        val delta = (total - base).toInt().coerceAtLeast(0)
-        onStepsDelta(delta)
     }
 
-    override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
+    override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) = Unit
 }

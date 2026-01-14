@@ -1,3 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">FitTrack</string>
+
+    <string name="loading">A carregar…</string>
+
+    <string name="settings_title">Definições</string>
+    <string name="settings_account">Conta</string>
+
+    <string name="field_name">Nome</string>
+    <string name="field_email">Email</string>
+    <string name="field_phone">Telefone</string>
+
+    <string name="btn_save_name">Guardar nome</string>
+    <string name="btn_save_phone">Guardar telefone</string>
+    <string name="btn_logout">Terminar sessão</string>
+
+    <string name="msg_invalid_name">Nome inválido</string>
+    <string name="msg_saved">Guardado com sucesso</string>
+
+    <string name="friends_title">Amigos</string>
+    <string name="btn_add_from_contacts">Adicionar dos contactos</string>
+    <string name="btn_add_friend">Adicionar amigo</string>
+    <string name="btn_remove">Remover</string>
+    <string name="activity_contacts_title">Contactos</string>
+    <string name="activity_contacts_pick">Escolher contacto</string>
+    <string name="activity_contacts_none">Nenhum contacto selecionado</string>
+    <string name="activity_contacts_selected">Selecionado: %1$s</string>
+    <string name="activity_contacts_call">Ligar</string>
+    <string name="activity_contacts_sms">SMS</string>
+    <string name="activity_contacts_perm_needed">Permissão de contactos necessária</string>
+    <string name="activity_contacts_no_phone">Este contacto não tem número</string>
+
+
+    <string name="social_title">Social</string>
+    <string name="social_subtitle_month">Este mês</string>
+    <string name="social_global">Global</string>
+    <string name="social_friends">Amigos</string>
+    <string name="social_empty">Sem dados para mostrar</string>
+    <string name="social_friends_empty">Ainda não tens amigos adicionados</string>
+
+    <string name="steps_short">passos</string>
+
+    <string name="notif_overtaken_title">Foste ultrapassado</string>
+    <string name="notif_overtaken_body">Um amigo passou-te no ranking.</string>
 </resources>

@@ -1,5 +1,4 @@
 import java.util.Properties
-import org.gradle.api.GradleException
 
 plugins {
     alias(libs.plugins.android.application)
@@ -7,13 +6,12 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
     alias(libs.plugins.androidx.room)
+
+    id("com.google.gms.google-services")
 }
 
 val secrets = Properties()
 val secretsFile = rootProject.file("secrets.properties")
-
-println(">>> secretsFile = ${secretsFile.absolutePath} exists=${secretsFile.exists()}")
-
 if (secretsFile.exists()) {
     secretsFile.inputStream().use { secrets.load(it) }
 }
@@ -21,9 +19,6 @@ if (secretsFile.exists()) {
 val mapsApiKey = secrets.getProperty("MAPS_API_KEY")?.trim()
     ?: System.getenv("MAPS_API_KEY")?.trim()
     ?: ""
-
-println(">>> MAPS_API_KEY length = ${mapsApiKey.length}")
-
 
 android {
     namespace = "pt.ipp.estg.fittrack"
@@ -35,7 +30,6 @@ android {
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
-
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         manifestPlaceholders["MAPS_API_KEY"] = mapsApiKey
@@ -51,6 +45,9 @@ android {
         }
     }
 
+    buildFeatures {
+        buildConfig = true
+    }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -72,35 +69,46 @@ room {
 }
 
 dependencies {
+    // Room
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
 
+    // Maps compose + location
     implementation(libs.maps.compose)
+    implementation(libs.play.services.location)
 
-    implementation(libs.androidx.core.ktx)
-    implementation(libs.androidx.lifecycle.runtime.ktx)
-    implementation(libs.androidx.activity.compose)
-
-    // Firebase (BOM)
-    implementation(platform("com.google.firebase:firebase-bom:33.7.0"))
-    implementation("com.google.firebase:firebase-auth-ktx")
-    implementation("com.google.firebase:firebase-firestore-ktx")
-
-    // await() para Tasks (Firestore/Auth)
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.8.1")
-
-
+    // Compose + navigation
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
-
     implementation(libs.androidx.navigation.compose)
     implementation(libs.compose.material.icons.extended)
 
-    implementation(libs.play.services.location)
+    // Firebase
+    implementation(platform("com.google.firebase:firebase-bom:34.7.0"))
+    implementation("com.google.firebase:firebase-auth")
+    implementation("com.google.firebase:firebase-firestore")
+    implementation("com.google.firebase:firebase-storage")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.8.1")
+
+    // Imagens
+    implementation("io.coil-kt:coil-compose:2.6.0")
+
+    // ✅ Retrofit + Moshi (Weather via REST)
+    implementation("com.squareup.retrofit2:retrofit:3.0.0")
+    implementation("com.squareup.retrofit2:converter-moshi:3.0.0")
+    implementation("com.squareup.moshi:moshi-kotlin:1.15.2")
+    ksp("com.squareup.moshi:moshi-kotlin-codegen:1.15.2")
+
+    implementation("androidx.work:work-runtime-ktx:2.11.0")
+
+    implementation("com.squareup.retrofit2:retrofit:2.11.0")
+    implementation("com.squareup.retrofit2:converter-moshi:2.11.0")
+    implementation("com.squareup.moshi:moshi-kotlin:1.15.1")
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
     // Tests
     testImplementation(libs.junit)
@@ -108,7 +116,6 @@ dependencies {
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
-
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 }

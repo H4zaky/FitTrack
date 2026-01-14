@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">FitTrack</string>
+
+    <string name="loading">Loading…</string>
+
+    <string name="settings_title">Settings</string>
+    <string name="settings_account">Account</string>
+
+    <string name="field_name">Name</string>
+    <string name="field_email">Email</string>
+    <string name="field_phone">Phone</string>
+
+    <string name="btn_save_name">Save name</string>
+    <string name="btn_save_phone">Save phone</string>
+    <string name="btn_logout">Log out</string>
+
+    <string name="msg_invalid_name">Invalid name</string>
+    <string name="msg_saved">Saved successfully</string>
+
+    <string name="friends_title">Friends</string>
+    <string name="btn_add_from_contacts">Add from contacts</string>
+    <string name="btn_add_friend">Add friend</string>
+    <string name="btn_remove">Remove</string>
+    <string name="activity_contacts_title">Contacts</string>
+    <string name="activity_contacts_pick">Pick contact</string>
+    <string name="activity_contacts_none">No contact selected</string>
+    <string name="activity_contacts_selected">Selected: %1$s</string>
+    <string name="activity_contacts_call">Call</string>
+    <string name="activity_contacts_sms">SMS</string>
+    <string name="activity_contacts_perm_needed">Contacts permission required</string>
+    <string name="activity_contacts_no_phone">This contact has no phone number</string>
+
+
+    <string name="social_title">Social</string>
+    <string name="social_subtitle_month">This month</string>
+    <string name="social_global">Global</string>
+    <string name="social_friends">Friends</string>
+    <string name="social_empty">Nothing to show</string>
+    <string name="social_friends_empty">You haven’t added friends yet</string>
+
+    <string name="steps_short">steps</string>
+
+    <string name="notif_overtaken_title">You were overtaken</string>
+    <string name="notif_overtaken_body">A friend passed you on the leaderboard.</string>
+</resources>

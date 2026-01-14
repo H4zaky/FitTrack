@@ -16,11 +16,11 @@ data class ActivityDetailsUi(
     val subtitle: String,
     val distanceKm: Double,
     val durationMin: Int,
-
     val avgSpeedKmh: Double? = null,
     val elevationGainM: Double? = null,
     val start: String? = null,
-    val end: String? = null
+    val end: String? = null,
+    val weather: String? = null
 )
 
 @Composable
@@ -45,8 +45,11 @@ fun ActivityDetailsCard(
                 Text("Vel. média: %.1f km/h".format(it))
             }
 
-            details.elevationGainM?.let {
-                Text("Elevação: +%.0f m".format(it))
+            details.elevationGainM?.let { Text("Elevação: +%.0f m".format(it)) }
+
+            details.weather?.let {
+                Spacer(Modifier.height(8.dp))
+                Text("Tempo: $it")
             }
 
             details.start?.let {
@@ -54,9 +57,7 @@ fun ActivityDetailsCard(
                 Text("Início: $it")
             }
 
-            details.end?.let {
-                Text("Fim: $it")
-            }
+            details.end?.let { Text("Fim: $it") }
         }
     }
 }

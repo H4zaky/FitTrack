@@ -1,91 +1,289 @@
 package pt.ipp.estg.fittrack.ui.screens.friends
 
-import android.content.Intent
-import android.net.Uri
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Call
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Message
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
+import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material.icons.outlined.Group
+import androidx.compose.material.icons.outlined.PersonAddAlt
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.CoroutineScope
+import com.google.firebase.firestore.FieldValue
+import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
 import pt.ipp.estg.fittrack.core.contacts.ContactsUtil
-import pt.ipp.estg.fittrack.data.local.db.DbProvider
+import pt.ipp.estg.fittrack.data.local.dao.FriendDao
 import pt.ipp.estg.fittrack.data.local.entity.FriendEntity
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FriendsScreen() {
+fun FriendsScreen(
+    ownerUid: String,
+    friendDao: FriendDao
+) {
     val context = LocalContext.current
-    val db = remember { DbProvider.get(context) }
-    val dao = remember { db.friendDao() }
-    val scope = remember { CoroutineScope(Dispatchers.IO) }
+    val scope = rememberCoroutineScope()
+    val fs = remember { FirebaseFirestore.getInstance() }
 
-    val friends by dao.observeAll().collectAsState(initial = emptyList())
+    val friends by friendDao.observeAllForUser(ownerUid).collectAsState(initial = emptyList())
+
+    var query by rememberSaveable { mutableStateOf("") }
+    var showAddSheet by rememberSaveable { mutableStateOf(false) }
+
+    // Form add
+    var name by rememberSaveable { mutableStateOf("") }
+    var phone by rememberSaveable { mutableStateOf("") }
+    var saving by remember { mutableStateOf(false) }
+
+    val filtered = remember(friends, query) {
+        val q = query.trim().lowercase()
+        if (q.isBlank()) friends
+        else friends.filter {
+            it.name.lowercase().contains(q) || it.phone.lowercase().contains(q)
+        }
+    }
 
     val pickContact = rememberLauncherForActivityResult(
         ActivityResultContracts.PickContact()
     ) { uri ->
-        if (uri == null) return@rememberLauncherForActivityResult
-        val picked = ContactsUtil.readPickedContact(context, uri) ?: return@rememberLauncherForActivityResult
+        uri ?: return@rememberLauncherForActivityResult
+        val res = ContactsUtil.readPickedContact(context, uri) ?: return@rememberLauncherForActivityResult
+        name = res.name
+        phone = res.phone
+    }
+
+    suspend fun resolveUidByPhone(phoneNorm: String): String? {
+        val snap = fs.collection("users")
+            .whereEqualTo("phone", phoneNorm)
+            .limit(1)
+            .get()
+            .await()
+        return snap.documents.firstOrNull()?.id
+    }
+
+    fun resetAddForm() {
+        name = ""
+        phone = ""
+        saving = false
+    }
+
+    suspend fun addFriend() {
+        val n = name.trim()
+        val p = ContactsUtil.normalizePhone(phone)
+
+        if (ownerUid.isBlank()) return
+
+        if (n.isBlank() || p.isBlank()) {
+            Toast.makeText(context, "Nome/telefone inválidos.", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        saving = true
+
+        val friendUid = withContext(Dispatchers.IO) {
+            runCatching { resolveUidByPhone(p) }.getOrNull()
+        }
+
+        // não deixar adicionar a si próprio
+        if (friendUid != null && friendUid == ownerUid) {
+            saving = false
+            Toast.makeText(context, "Não podes adicionar o teu próprio contacto.", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val entity = FriendEntity(
+            ownerUid = ownerUid,
+            phone = p,
+            name = n,
+            createdAt = System.currentTimeMillis(),
+            uid = friendUid
+        )
+
+        // 1) Room (por user)
+        withContext(Dispatchers.IO) { friendDao.upsert(entity) }
+
+        // 2) Firestore (por user): users/{ownerUid}/friends/{docId}
+        val docId = friendUid ?: p
+        runCatching {
+            fs.collection("users").document(ownerUid)
+                .collection("friends").document(docId)
+                .set(
+                    mapOf(
+                        "uid" to friendUid,
+                        "phone" to p,
+                        "name" to n,
+                        "createdAt" to FieldValue.serverTimestamp()
+                    )
+                )
+                .await()
+        }
+
+        saving = false
+        Toast.makeText(context, "Amigo adicionado.", Toast.LENGTH_SHORT).show()
+        showAddSheet = false
+        resetAddForm()
+    }
+
+    fun removeFriend(f: FriendEntity) {
         scope.launch {
-            dao.upsert(FriendEntity(phone = picked.phone, name = picked.name))
+            withContext(Dispatchers.IO) {
+                friendDao.deleteByPhoneForUser(ownerUid, f.phone)
+            }
+
+            val docId = f.uid ?: f.phone
+            runCatching {
+                fs.collection("users").document(ownerUid)
+                    .collection("friends").document(docId)
+                    .delete()
+                    .await()
+            }
+
+            Toast.makeText(context, "Removido.", Toast.LENGTH_SHORT).show()
         }
     }
 
-    Column(
-        modifier = Modifier.padding(12.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        Text("Amigos", style = MaterialTheme.typography.titleLarge)
-
-        Button(
-            onClick = { pickContact.launch(null) },
-            modifier = Modifier.fillMaxWidth()
-        ) { Text("Adicionar amigo pelos Contactos") }
-
-        if (friends.isEmpty()) {
-            Text("Sem amigos ainda. Adiciona pelos contactos.")
-        } else {
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                items(friends) { f ->
-                    FriendRow(
-                        name = f.name,
-                        phone = f.phone,
-                        onCall = {
-                            val i = Intent(Intent.ACTION_DIAL, Uri.parse("tel:${f.phone}"))
-                            context.startActivity(i)
-                        },
-                        onSms = {
-                            val i = Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:${f.phone}"))
-                            context.startActivity(i)
-                        },
-                        onDelete = {
-                            scope.launch { dao.deleteByPhone(f.phone) }
-                        }
-                    )
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Column {
+                        Text("Amigos", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(
+                            text = "${friends.size} no total",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
+            )
+        },
+        floatingActionButton = {
+            FloatingActionButton(onClick = { showAddSheet = true }) {
+                Icon(Icons.Outlined.PersonAddAlt, contentDescription = "Adicionar amigo")
+            }
+        }
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .padding(padding)
+                .fillMaxSize()
+                .padding(horizontal = 12.dp)
+        ) {
+            Spacer(Modifier.height(8.dp))
+
+            OutlinedTextField(
+                value = query,
+                onValueChange = { query = it },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                shape = RoundedCornerShape(14.dp),
+                label = { Text("Pesquisar") },
+                placeholder = { Text("Nome ou telefone") }
+            )
+
+            Spacer(Modifier.height(12.dp))
+
+            if (filtered.isEmpty()) {
+                EmptyFriendsState(
+                    onAdd = { showAddSheet = true },
+                    modifier = Modifier.fillMaxSize()
+                )
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(bottom = 96.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    items(filtered, key = { it.ownerUid + "|" + it.phone }) { f ->
+                        FriendRow(
+                            name = f.name,
+                            phone = f.phone,
+                            onRemove = { removeFriend(f) }
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    if (showAddSheet) {
+        ModalBottomSheet(
+            onDismissRequest = {
+                showAddSheet = false
+                resetAddForm()
+            }
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text("Adicionar amigo", style = MaterialTheme.typography.titleLarge)
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = { pickContact.launch(null) },
+                        modifier = Modifier.weight(1f)
+                    ) { Text("Dos contactos") }
+
+                    OutlinedButton(
+                        onClick = { resetAddForm() },
+                        modifier = Modifier.weight(1f)
+                    ) { Text("Limpar") }
+                }
+
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    label = { Text("Nome") }
+                )
+
+                OutlinedTextField(
+                    value = phone,
+                    onValueChange = { phone = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    label = { Text("Telefone") }
+                )
+
+                Button(
+                    onClick = { scope.launch { addFriend() } },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !saving
+                ) {
+                    if (saving) {
+                        CircularProgressIndicator(strokeWidth = 2.dp, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(10.dp))
+                        Text("A guardar…")
+                    } else {
+                        Text("Adicionar")
+                    }
+                }
+
+                Spacer(Modifier.height(8.dp))
             }
         }
     }
@@ -95,24 +293,70 @@ fun FriendsScreen() {
 private fun FriendRow(
     name: String,
     phone: String,
-    onCall: () -> Unit,
-    onSms: () -> Unit,
-    onDelete: () -> Unit
+    onRemove: () -> Unit
 ) {
-    Card(Modifier.fillMaxWidth()) {
-        Row(
-            Modifier.padding(12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Column(Modifier.weight(1f)) {
-                Text(name, style = MaterialTheme.typography.titleMedium)
-                Text(phone, style = MaterialTheme.typography.bodySmall)
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        tonalElevation = 2.dp,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        ListItem(
+            leadingContent = {
+                val initial = name.trim().firstOrNull()?.uppercase() ?: "?"
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primaryContainer),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = initial,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                }
+            },
+            headlineContent = { Text(name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+            supportingContent = { Text(phone, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+            trailingContent = {
+                IconButton(onClick = onRemove) {
+                    Icon(Icons.Outlined.DeleteOutline, contentDescription = "Remover")
+                }
             }
-            Row {
-                IconButton(onClick = onCall) { Icon(Icons.Default.Call, contentDescription = "Ligar") }
-                IconButton(onClick = onSms) { Icon(Icons.Default.Message, contentDescription = "SMS") }
-                IconButton(onClick = onDelete) { Icon(Icons.Default.Delete, contentDescription = "Remover") }
-            }
+        )
+    }
+}
+
+@Composable
+private fun EmptyFriendsState(
+    onAdd: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier.padding(24.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Icon(
+            Icons.Outlined.Group,
+            contentDescription = null,
+            modifier = Modifier.size(48.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(Modifier.height(10.dp))
+        Text("Ainda não tens amigos", style = MaterialTheme.typography.titleMedium)
+        Spacer(Modifier.height(4.dp))
+        Text(
+            "Adiciona amigos para comparar quilómetros no ranking.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(Modifier.height(14.dp))
+        Button(onClick = onAdd) {
+            Icon(Icons.Outlined.PersonAddAlt, contentDescription = null)
+            Spacer(Modifier.width(8.dp))
+            Text("Adicionar amigo")
         }
     }
 }

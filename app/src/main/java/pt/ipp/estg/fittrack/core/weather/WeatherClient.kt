@@ -1,33 +1,45 @@
 package pt.ipp.estg.fittrack.core.weather
 
-import org.json.JSONObject
-import java.net.HttpURLConnection
-import java.net.URL
-
-data class WeatherSnapshot(
-    val tempC: Double?,
-    val windKmh: Double?,
-    val code: Int?,
-    val ts: Long = System.currentTimeMillis()
-)
+import com.squareup.moshi.Moshi
+import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
+import okhttp3.OkHttpClient
+import retrofit2.Retrofit
+import retrofit2.converter.moshi.MoshiConverterFactory
+import java.util.concurrent.TimeUnit
 
 object WeatherClient {
-    fun fetchCurrent(lat: Double, lon: Double): WeatherSnapshot {
-        val url = URL("https://api.open-meteo.com/v1/forecast?latitude=$lat&longitude=$lon&current_weather=true")
-        val conn = (url.openConnection() as HttpURLConnection).apply {
-            connectTimeout = 7000
-            readTimeout = 7000
-            requestMethod = "GET"
-        }
-        return conn.inputStream.use { stream ->
-            val text = stream.bufferedReader().readText()
-            val root = JSONObject(text)
-            val cur = root.optJSONObject("current_weather")
-            WeatherSnapshot(
-                tempC = cur?.optDouble("temperature")?.takeIf { !it.isNaN() },
-                windKmh = cur?.optDouble("windspeed")?.takeIf { !it.isNaN() },
-                code = cur?.optInt("weathercode")
-            )
-        }
+
+    private const val BASE_URL = "https://api.open-meteo.com/"
+
+    private val moshi: Moshi by lazy {
+        Moshi.Builder()
+            .add(KotlinJsonAdapterFactory())
+            .build()
+    }
+
+    private val api: OpenMeteoApi by lazy {
+        val okHttp = OkHttpClient.Builder()
+            .connectTimeout(12, TimeUnit.SECONDS)
+            .readTimeout(12, TimeUnit.SECONDS)
+            .writeTimeout(12, TimeUnit.SECONDS)
+            .build()
+
+        Retrofit.Builder()
+            .baseUrl(BASE_URL)
+            .client(okHttp)
+            .addConverterFactory(MoshiConverterFactory.create(moshi))
+            .build()
+            .create(OpenMeteoApi::class.java)
+    }
+
+    suspend fun getSnapshot(latitude: Double, longitude: Double): WeatherSnapshot {
+        val res = api.getCurrentWeather(lat = latitude, lon = longitude)
+        val cw = res.currentWeather
+        return WeatherSnapshot(
+            tempC = cw?.temperature,
+            windKmh = cw?.windspeed,
+            code = cw?.weathercode,
+            isoTime = cw?.time
+        )
     }
 }

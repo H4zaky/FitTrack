@@ -4,45 +4,55 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material3.DrawerValue
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.ModalDrawerSheet
-import androidx.compose.material3.ModalNavigationDrawer
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationDrawerItem
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.rememberDrawerState
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import kotlinx.coroutines.launch
+import pt.ipp.estg.fittrack.data.local.db.DbProvider
+import pt.ipp.estg.fittrack.ui.detail.SessionDetailScreen
 import pt.ipp.estg.fittrack.ui.screens.activity.ActivityScreen
 import pt.ipp.estg.fittrack.ui.screens.friends.FriendsScreen
 import pt.ipp.estg.fittrack.ui.screens.history.HistoryScreen
 import pt.ipp.estg.fittrack.ui.screens.settings.SettingsScreen
+import pt.ipp.estg.fittrack.ui.screens.social.SocialScreen
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AppShell(userName: String) {
+fun AppShell(
+    userId: String,
+    currentName: String,
+    userEmail: String,
+    currentPhone: String,
+    onLogout: () -> Unit,
+    onSaveName: suspend (String) -> Unit,
+    onSavePhone: suspend (String) -> Unit
+) {
+    val context = LocalContext.current
+    val db = remember { DbProvider.get(context) }
+    val activityDao = remember { db.activityDao() }
+    val trackPointDao = remember { db.trackPointDao() }
+    val friendDao = remember { db.friendDao() }
+
     val navController = rememberNavController()
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
+
+    val bottomRoutes = remember { bottomScreens.map { it.route }.toSet() }
+    val showBottomBar = (currentRoute == null) || (currentRoute in bottomRoutes)
+
+    val isDetailRoute = currentRoute == Screen.Detail.routePattern || (currentRoute?.startsWith("detail/") == true)
+    val showBack = (currentRoute == Screen.Settings.route) || isDetailRoute
 
     ModalNavigationDrawer(
         drawerState = drawerState,
@@ -55,9 +65,7 @@ fun AppShell(userName: String) {
                         selected = currentRoute == item.route,
                         onClick = {
                             scope.launch { drawerState.close() }
-                            navController.navigate(item.route) {
-                                launchSingleTop = true
-                            }
+                            navController.navigate(item.route) { launchSingleTop = true }
                         }
                     )
                 }
@@ -69,15 +77,20 @@ fun AppShell(userName: String) {
                 TopAppBar(
                     title = { Text("FitTrack") },
                     navigationIcon = {
-                        IconButton(onClick = { scope.launch { drawerState.open() } }) {
-                            Icon(Icons.Filled.Menu, contentDescription = "Menu")
+                        if (showBack) {
+                            IconButton(onClick = { navController.popBackStack() }) {
+                                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Voltar")
+                            }
+                        } else {
+                            IconButton(onClick = { scope.launch { drawerState.open() } }) {
+                                Icon(Icons.Filled.Menu, contentDescription = "Menu")
+                            }
                         }
                     }
                 )
             },
             bottomBar = {
-                // Só mostramos a bottom bar nas 3 tabs principais
-                if (bottomScreens.any { it.route == currentRoute } || currentRoute == null) {
+                if (showBottomBar) {
                     NavigationBar {
                         bottomScreens.forEach { screen ->
                             val selected = (currentRoute ?: Screen.Activity.route) == screen.route
@@ -85,11 +98,8 @@ fun AppShell(userName: String) {
                                 selected = selected,
                                 onClick = {
                                     navController.navigate(screen.route) {
-                                        popUpTo(navController.graph.findStartDestination().id) {
-                                            saveState = true
-                                        }
+                                        popUpTo(Screen.Activity.route) { inclusive = false }
                                         launchSingleTop = true
-                                        restoreState = true
                                     }
                                 },
                                 icon = { Icon(screen.icon!!, contentDescription = screen.label) },
@@ -105,11 +115,51 @@ fun AppShell(userName: String) {
                 startDestination = Screen.Activity.route,
                 modifier = Modifier.padding(padding)
             ) {
-                composable(Screen.Activity.route) { ActivityScreen(userName = "Carlos") }
-                composable(Screen.History.route) { HistoryScreen() }
-                composable(Screen.Friends.route) { FriendsScreen() }
+                composable(Screen.Activity.route) {
+                    ActivityScreen(userName = currentName)
+                }
 
-                composable(Screen.Settings.route) { SettingsScreen() }
+                composable(Screen.History.route) {
+                    HistoryScreen(
+                        activityDao = activityDao,
+                        userId = userId,
+                        onOpenSession = { sid -> navController.navigate(Screen.Detail.route(sid)) }
+                    )
+                }
+
+                composable(Screen.Friends.route) {
+                    FriendsScreen(
+                        ownerUid = userId,
+                        friendDao = friendDao
+                    )
+                }
+
+                composable(Screen.Social.route) {
+                    SocialScreen()
+                }
+
+                composable(Screen.Settings.route) {
+                    SettingsScreen(
+                        initialName = currentName,
+                        initialEmail = userEmail,
+                        initialPhone = currentPhone,
+                        onSaveName = onSaveName,
+                        onSavePhone = onSavePhone,
+                        onLogout = onLogout
+                    )
+                }
+
+
+                composable(Screen.Detail.routePattern) { backStack ->
+                    val sid = backStack.arguments?.getString("id") ?: return@composable
+                    SessionDetailScreen(
+                        sessionId = sid,
+                        userId = userId,
+                        activityDao = activityDao,
+                        trackPointDao = trackPointDao,
+                        onDeleted = { navController.popBackStack() }
+                    )
+                }
             }
         }
     }
