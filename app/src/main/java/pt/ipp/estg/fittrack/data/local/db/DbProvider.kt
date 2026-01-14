@@ -139,6 +139,13 @@ object DbProvider {
         }
     }
 
+    // ✅ No-op para forçar upgrade e atualizar room_master_table identity hash
+    private val MIGRATION_10_11 = object : Migration(10, 11) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            // sem alterações
+        }
+    }
+
     fun get(context: Context, userId: String? = null): FitTrackDb {
         val safeKey = userId
             ?.takeIf { it.isNotBlank() }
@@ -167,7 +174,8 @@ object DbProvider {
                 MIGRATION_6_7,
                 MIGRATION_7_8,
                 MIGRATION_8_9,
-                MIGRATION_9_10
+                MIGRATION_9_10,
+                MIGRATION_10_11
             )
             .build()
     }

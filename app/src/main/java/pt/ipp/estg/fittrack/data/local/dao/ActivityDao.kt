@@ -21,6 +21,9 @@ interface ActivityDao {
     @Query("DELETE FROM activity_sessions WHERE id = :id AND userId = :userId")
     suspend fun deleteByIdForUser(userId: String, id: String)
 
+    @Query("DELETE FROM activity_sessions WHERE userId = :userId")
+    suspend fun deleteAllForUser(userId: String)
+
     @Query("""
         UPDATE activity_sessions
         SET startLat = :startLat, startLon = :startLon
@@ -66,6 +69,7 @@ interface ActivityDao {
         photoAfterUri: String?
     )
 
+    // --- legacy / shared ---
     @Query("SELECT * FROM activity_sessions ORDER BY startTs DESC")
     suspend fun getAll(): List<ActivitySessionEntity>
 
@@ -118,5 +122,4 @@ interface ActivityDao {
         photoBeforeUri: String?,
         photoAfterUri: String?
     )
-    
 }

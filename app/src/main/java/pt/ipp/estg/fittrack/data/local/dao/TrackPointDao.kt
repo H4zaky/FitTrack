@@ -8,7 +8,8 @@ import pt.ipp.estg.fittrack.data.local.entity.TrackPointEntity
 
 @Dao
 interface TrackPointDao {
-    @androidx.room.Insert
+
+    @Insert
     suspend fun insertAll(points: List<TrackPointEntity>)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
@@ -19,4 +20,10 @@ interface TrackPointDao {
 
     @Query("DELETE FROM track_points WHERE sessionId = :sessionId")
     suspend fun deleteBySession(sessionId: String)
+
+    @Query("""
+        DELETE FROM track_points
+        WHERE sessionId IN (SELECT id FROM activity_sessions WHERE userId = :userId)
+    """)
+    suspend fun deleteAllForUser(userId: String)
 }

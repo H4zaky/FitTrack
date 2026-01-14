@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import pt.ipp.estg.fittrack.core.sync.FirebaseSync
 import pt.ipp.estg.fittrack.data.local.dao.ActivityDao
 import pt.ipp.estg.fittrack.data.local.dao.TrackPointDao
 import pt.ipp.estg.fittrack.data.local.entity.ActivitySessionEntity
@@ -113,6 +114,7 @@ fun SessionDetailScreen(
                         trackPointDao.deleteBySession(sessionId)
 
                         activityDao.deleteByIdForUser(userId = userId, id = sessionId)
+                        runCatching { FirebaseSync.deleteSession(userId, sessionId) }
                     }
                     onDeleted()
                 }

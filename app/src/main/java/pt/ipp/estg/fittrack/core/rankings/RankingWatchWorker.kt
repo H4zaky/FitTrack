@@ -14,19 +14,25 @@ class RankingWatchWorker(
     params: WorkerParameters
 ) : CoroutineWorker(ctx, params) {
 
-    override suspend fun doWork() = withContext(Dispatchers.IO) {
+    override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         val ctx = applicationContext
         val myUid = TrackingPrefs.getUserId(ctx).orEmpty()
         if (myUid.isBlank()) return@withContext Result.success()
 
         val db = DbProvider.get(ctx)
-        val friendUids = db.friendDao().getAllOnce()
+
+        val friendUids = db.friendDao()
+            .getAllForUser(myUid)
             .mapNotNull { it.uid?.takeIf { u -> u.isNotBlank() } }
             .toSet()
 
         if (friendUids.isEmpty()) return@withContext Result.success()
 
-        LeaderboardCacheRepository.refreshForUids(ctx, friendUids + myUid)
+        LeaderboardCacheRepository.refreshForUids(
+            context = ctx,
+            uidForDb = myUid,
+            uids = friendUids + myUid
+        )
 
         val month = LeaderboardCacheRepository.monthKey()
         val dao = db.leaderboardSnapshotDao()
@@ -47,7 +53,7 @@ class RankingWatchWorker(
             NotifUtil.notifyRankOvertaken(
                 ctx,
                 title = "Ultrapassado no ranking!",
-                body = "Um amigo ultrapassou-te em distância este mês."
+                body = "${bestFriend.name.ifBlank { "Um amigo" }} ultrapassou-te em distância este mês."
             )
         } else if (bestFriend.distanceKm <= myDist && already) {
             sp.edit().putBoolean(key, false).apply()

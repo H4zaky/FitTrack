@@ -18,7 +18,7 @@ import pt.ipp.estg.fittrack.data.local.entity.TrackPointEntity
         FriendEntity::class,
         LeaderboardSnapshotEntity::class
     ],
-    version = 10,
+    version = 11,
     exportSchema = true
 )
 abstract class FitTrackDb : RoomDatabase() {

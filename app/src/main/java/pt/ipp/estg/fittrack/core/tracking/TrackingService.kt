@@ -57,6 +57,8 @@ class TrackingService : Service() {
     private val fused by lazy { LocationServices.getFusedLocationProviderClient(this) }
     private var callback: LocationCallback? = null
 
+    private var stopping = false
+
     private val db by lazy { DbProvider.get(this) }
     private val activityDao by lazy { db.activityDao() }
     private val pointDao by lazy { db.trackPointDao() }
@@ -98,54 +100,56 @@ class TrackingService : Service() {
     }
 
     override fun onDestroy() {
-        val sid = sessionId
-        val uid = activeUserId.ifBlank { TrackingPrefs.getUserId(this).orEmpty() }
+        if(!stopping) {
+            val sid = sessionId
+            val uid = activeUserId.ifBlank { TrackingPrefs.getUserId(this).orEmpty() }
 
-        // Fecha a sessão ativa caso o serviço seja destruído inesperadamente
-        runBlocking(Dispatchers.IO) {
-            runCatching { flushPendingPoints() }
+            // Fecha a sessão ativa caso o serviço seja destruído inesperadamente
+            runBlocking(Dispatchers.IO) {
+                runCatching { flushPendingPoints() }
 
-            if (!sid.isNullOrBlank()) {
-                val endTs = System.currentTimeMillis()
-                val durationMin = ((endTs - startTs) / 60000L).toInt().coerceAtLeast(0)
-                val distanceKm = distanceM / 1000.0
-                val avgSpeedMps =
-                    if (endTs > startTs) distanceM / max(1.0, (endTs - startTs) / 1000.0) else 0.0
+                if (!sid.isNullOrBlank()) {
+                    val endTs = System.currentTimeMillis()
+                    val durationMin = ((endTs - startTs) / 60000L).toInt().coerceAtLeast(0)
+                    val distanceKm = distanceM / 1000.0
+                    val avgSpeedMps =
+                        if (endTs > startTs) distanceM / max(1.0, (endTs - startTs) / 1000.0) else 0.0
 
-                runCatching {
-                    if (uid.isNotBlank()) {
-                        activityDao.finalizeSessionForUser(
-                            userId = uid,
-                            id = sid,
-                            endTs = endTs,
-                            distanceKm = distanceKm,
-                            durationMin = durationMin,
-                            endLat = lastLoc?.latitude,
-                            endLon = lastLoc?.longitude,
-                            avgSpeedMps = avgSpeedMps,
-                            elevationGainM = elevationGainM,
-                            steps = currentSteps,
-                            photoBeforeUri = TrackingPrefs.getPhotoBefore(this@TrackingService),
-                            photoAfterUri = TrackingPrefs.getPhotoAfter(this@TrackingService)
-                        )
-                    } else {
-                        activityDao.finalizeSession(
-                            id = sid,
-                            endTs = endTs,
-                            distanceKm = distanceKm,
-                            durationMin = durationMin,
-                            endLat = lastLoc?.latitude,
-                            endLon = lastLoc?.longitude,
-                            avgSpeedMps = avgSpeedMps,
-                            elevationGainM = elevationGainM,
-                            steps = currentSteps,
-                            photoBeforeUri = TrackingPrefs.getPhotoBefore(this@TrackingService),
-                            photoAfterUri = TrackingPrefs.getPhotoAfter(this@TrackingService)
-                        )
+                    runCatching {
+                        if (uid.isNotBlank()) {
+                            activityDao.finalizeSessionForUser(
+                                userId = uid,
+                                id = sid,
+                                endTs = endTs,
+                                distanceKm = distanceKm,
+                                durationMin = durationMin,
+                                endLat = lastLoc?.latitude,
+                                endLon = lastLoc?.longitude,
+                                avgSpeedMps = avgSpeedMps,
+                                elevationGainM = elevationGainM,
+                                steps = currentSteps,
+                                photoBeforeUri = TrackingPrefs.getPhotoBefore(this@TrackingService),
+                                photoAfterUri = TrackingPrefs.getPhotoAfter(this@TrackingService)
+                            )
+                        } else {
+                            activityDao.finalizeSession(
+                                id = sid,
+                                endTs = endTs,
+                                distanceKm = distanceKm,
+                                durationMin = durationMin,
+                                endLat = lastLoc?.latitude,
+                                endLon = lastLoc?.longitude,
+                                avgSpeedMps = avgSpeedMps,
+                                elevationGainM = elevationGainM,
+                                steps = currentSteps,
+                                photoBeforeUri = TrackingPrefs.getPhotoBefore(this@TrackingService),
+                                photoAfterUri = TrackingPrefs.getPhotoAfter(this@TrackingService)
+                            )
+                        }
                     }
-                }
 
-                runCatching { TrackingPrefs.clearActiveSession(this@TrackingService) }
+                    runCatching { TrackingPrefs.clearActiveSession(this@TrackingService) }
+                }
             }
         }
 
@@ -278,17 +282,17 @@ class TrackingService : Service() {
         val sid = sessionId ?: run { stopSelf(); return }
         val uid = activeUserId.ifBlank { TrackingPrefs.getUserId(this).orEmpty() }
 
+        stopping = true
+
         stopTicker()
         stopLocationUpdates()
         stepManager?.stop()
-
-        serviceScope.launch { flushPendingPoints() }
 
         val endTs = System.currentTimeMillis()
         val durationMin = ((endTs - startTs) / 60000L).toInt().coerceAtLeast(0)
         val distanceKm = distanceM / 1000.0
         val avgSpeedMps =
-            if (endTs > startTs) distanceM / max(1.0, (endTs - startTs) / 1000.0) else 0.0
+            if (endTs > startTs) distanceM / kotlin.math.max(1.0, (endTs - startTs) / 1000.0) else 0.0
 
         val endLat = lastLoc?.latitude
         val endLon = lastLoc?.longitude
@@ -297,67 +301,74 @@ class TrackingService : Service() {
         val afterUri = TrackingPrefs.getPhotoAfter(this)
 
         serviceScope.launch {
-            if (uid.isNotBlank()) {
-                activityDao.finalizeSessionForUser(
-                    userId = uid,
-                    id = sid,
-                    endTs = endTs,
-                    distanceKm = distanceKm,
-                    durationMin = durationMin,
-                    endLat = endLat,
-                    endLon = endLon,
-                    avgSpeedMps = avgSpeedMps,
-                    elevationGainM = elevationGainM,
-                    steps = currentSteps,
-                    photoBeforeUri = beforeUri,
-                    photoAfterUri = afterUri
-                )
-            } else {
-                activityDao.finalizeSession(
-                    id = sid,
-                    endTs = endTs,
-                    distanceKm = distanceKm,
-                    durationMin = durationMin,
-                    endLat = endLat,
-                    endLon = endLon,
-                    avgSpeedMps = avgSpeedMps,
-                    elevationGainM = elevationGainM,
-                    steps = currentSteps,
-                    photoBeforeUri = beforeUri,
-                    photoAfterUri = afterUri
-                )
-            }
-        }
-
-        serviceScope.launch {
-            if (uid.isBlank()) return@launch
-
+            // 1) grava últimos pontos no Room
             runCatching { flushPendingPoints() }
 
-            val session = activityDao.getByIdForUser(uid, sid) ?: return@launch
-            val points = runCatching { pointDao.getBySession(sid) }.getOrNull().orEmpty()
-
+            // 2) fecha sessão no Room
             runCatching {
-                FirebaseSync.uploadSession(uid, session)
-                FirebaseSync.uploadTrackPoints(uid, sid, points)
+                if (uid.isNotBlank()) {
+                    activityDao.finalizeSessionForUser(
+                        userId = uid,
+                        id = sid,
+                        endTs = endTs,
+                        distanceKm = distanceKm,
+                        durationMin = durationMin,
+                        endLat = endLat,
+                        endLon = endLon,
+                        avgSpeedMps = avgSpeedMps,
+                        elevationGainM = elevationGainM,
+                        steps = currentSteps,
+                        photoBeforeUri = beforeUri,
+                        photoAfterUri = afterUri
+                    )
+                } else {
+                    activityDao.finalizeSession(
+                        id = sid,
+                        endTs = endTs,
+                        distanceKm = distanceKm,
+                        durationMin = durationMin,
+                        endLat = endLat,
+                        endLon = endLon,
+                        avgSpeedMps = avgSpeedMps,
+                        elevationGainM = elevationGainM,
+                        steps = currentSteps,
+                        photoBeforeUri = beforeUri,
+                        photoAfterUri = afterUri
+                    )
+                }
+            }
 
-                FirebaseSync.countSessionIntoLeaderboard(
-                    uid = uid,
-                    session = session,
-                    userName = TrackingPrefs.getUserName(this@TrackingService) ?: "User"
-                )
+            // 3) upload para Firestore (sessão + pontos + leaderboard)
+            if (uid.isNotBlank()) {
+                val session = activityDao.getByIdForUser(uid, sid)
+                if (session != null) {
+                    val points = pointDao.getBySession(sid)
+
+                    runCatching { FirebaseSync.uploadSession(uid, session) }
+                    runCatching { FirebaseSync.uploadTrackPoints(uid, sid, points) }
+                    runCatching {
+                        FirebaseSync.countSessionIntoLeaderboard(
+                            uid = uid,
+                            session = session,
+                            userName = TrackingPrefs.getUserName(this@TrackingService) ?: "User"
+                        )
+                    }
+                }
+            }
+
+            // 4) limpa estado local
+            runCatching { TrackingPrefs.clearActiveSession(this@TrackingService) }
+            sessionId = null
+            activeUserId = ""
+
+            // 5) só agora fecha o service (no main thread)
+            withContext(Dispatchers.Main) {
+                stopForeground(STOP_FOREGROUND_REMOVE)
+                stopSelf()
             }
         }
-
-
-        stopFlushLoop()
-        TrackingPrefs.clearActiveSession(this)
-        sessionId = null
-        activeUserId = ""
-
-        stopForeground(STOP_FOREGROUND_REMOVE)
-        stopSelf()
     }
+
 
     @SuppressLint("MissingPermission")
     private fun startLocationUpdates() {

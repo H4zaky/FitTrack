@@ -1,22 +1,24 @@
 package pt.ipp.estg.fittrack.core.sync
 
+import android.content.Context
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
+import com.google.firebase.firestore.Source
 import kotlinx.coroutines.tasks.await
+import pt.ipp.estg.fittrack.data.local.db.DbProvider
 import pt.ipp.estg.fittrack.data.local.entity.ActivitySessionEntity
 import pt.ipp.estg.fittrack.data.local.entity.TrackPointEntity
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import android.content.Context
-import pt.ipp.estg.fittrack.data.local.db.DbProvider
-
+import com.google.firebase.firestore.FieldPath
 
 object FirebaseSync {
     private val fs = FirebaseFirestore.getInstance()
-    private const val SYNC_SESSIONS_LIMIT = 50
-    private const val SYNC_POINTS_SESSIONS_LIMIT = 10
 
+    // ---------------- UPLOAD ----------------
+
+    // users/{uid}/sessions/{sid}
     suspend fun uploadSession(uid: String, s: ActivitySessionEntity) {
         val ref = fs.collection("users").document(uid)
             .collection("sessions").document(s.id)
@@ -42,6 +44,34 @@ object FirebaseSync {
         )
 
         ref.set(data, SetOptions.merge()).await()
+    }
+    suspend fun deleteSession(uid: String, sessionId: String) {
+        val sessionRef = fs.collection("users")
+            .document(uid)
+            .collection("sessions")
+            .document(sessionId)
+
+        // 1) apagar subcoleção points em batches
+        val pointsCol = sessionRef.collection("points")
+
+        while (true) {
+            val snap = pointsCol
+                .orderBy(FieldPath.documentId())
+                .limit(450)
+                .get()
+                .await()
+
+            if (snap.isEmpty) break
+
+            val batch = fs.batch()
+            for (d in snap.documents) {
+                batch.delete(d.reference)
+            }
+            batch.commit().await()
+        }
+
+        // 2) apagar o doc da sessão
+        sessionRef.delete().await()
     }
 
     suspend fun uploadTrackPoints(uid: String, sessionId: String, points: List<TrackPointEntity>) {
@@ -73,6 +103,7 @@ object FirebaseSync {
         }
     }
 
+    // leaderboards/{yyyy-MM}/users/{uid}
     suspend fun countSessionIntoLeaderboard(uid: String, session: ActivitySessionEntity, userName: String?) {
         val month = SimpleDateFormat("yyyy-MM", Locale.US).format(Date(session.startTs))
         val ref = fs.collection("leaderboards").document(month)
@@ -95,52 +126,23 @@ object FirebaseSync {
         }.await()
     }
 
-    suspend fun syncDownAndReconcile(context: Context, uid: String) {
-        val db = DbProvider.get(context.applicationContext)
+    // ---------------- DOWNLOAD (SYNC DOWN) ----------------
+
+    suspend fun syncDownAndReplace(context: Context, uid: String) {
+        val db = DbProvider.get(context)
         val activityDao = db.activityDao()
         val pointDao = db.trackPointDao()
 
-        // 1) download sessions (recentes)
-        val remoteSessions = downloadSessions(uid, limit = SYNC_SESSIONS_LIMIT)
-        val remoteIds = remoteSessions.map { it.id }.toSet()
-
-        // 2) upsert no Room
-        for (s in remoteSessions) {
-            activityDao.upsert(s.copy(userId = uid))
+        // 1) buscar remoto (server → cache)
+        val sessionsCol = fs.collection("users").document(uid).collection("sessions")
+        val sessionsSnap = try {
+            sessionsCol.get(Source.SERVER).await()
+        } catch (_: Exception) {
+            sessionsCol.get(Source.CACHE).await()
         }
 
-        val forPoints = remoteSessions
-            .sortedByDescending { it.startTs }
-            .take(SYNC_POINTS_SESSIONS_LIMIT)
-
-        for (s in forPoints) {
-            val points = downloadTrackPoints(uid, s.id)
-            pointDao.deleteBySession(s.id)
-            pointDao.insertAll(points)
-        }
-
-        val local = activityDao.getAllForUser(uid)
-        val pendingUpload = local.filter { it.endTs != null && it.id !in remoteIds }
-
-        for (s in pendingUpload) {
-            val points = runCatching { pointDao.getBySession(s.id) }.getOrNull().orEmpty()
-            runCatching {
-                uploadSession(uid, s)
-                uploadTrackPoints(uid, s.id, points)
-            }
-        }
-    }
-
-    private suspend fun downloadSessions(uid: String, limit: Int): List<ActivitySessionEntity> {
-        val snap = fs.collection("users").document(uid)
-            .collection("sessions")
-            .orderBy("startTs", com.google.firebase.firestore.Query.Direction.DESCENDING)
-            .limit(limit.toLong())
-            .get()
-            .await()
-
-        return snap.documents.mapNotNull { d ->
-            val id = d.getString("id") ?: d.id
+        val remoteSessions = sessionsSnap.documents.mapNotNull { d ->
+            val sid = d.getString("id") ?: d.id
             val title = d.getString("title") ?: "Atividade"
             val type = d.getString("type") ?: "Walking"
             val mode = d.getString("mode") ?: "MANUAL"
@@ -148,58 +150,95 @@ object FirebaseSync {
             val startTs = d.getLong("startTs") ?: return@mapNotNull null
             val endTs = d.getLong("endTs")
 
-            val durationMin = (d.getLong("durationMin") ?: 0L).toInt()
+            val dist = d.getDouble("distanceKm") ?: 0.0
+            val dur = (d.getLong("durationMin") ?: 0L).toInt()
+
+            val startLat = d.getDouble("startLat")
+            val startLon = d.getDouble("startLon")
+            val endLat = d.getDouble("endLat")
+            val endLon = d.getDouble("endLon")
+
+            val avg = d.getDouble("avgSpeedMps") ?: 0.0
+            val elev = d.getDouble("elevationGainM") ?: 0.0
             val steps = (d.getLong("steps") ?: 0L).toInt()
-            val weatherCode = d.getLong("weatherCode")?.toInt()
+
+            val pb = d.getString("photoBeforeUri")
+            val pa = d.getString("photoAfterUri")
+
+            val wt = d.getDouble("weatherTempC")
+            val ww = d.getDouble("weatherWindKmh")
+            val wc = d.getLong("weatherCode")?.toInt()
 
             ActivitySessionEntity(
-                id = id,
+                id = sid,
                 userId = uid,
                 title = title,
                 type = type,
                 startTs = startTs,
                 endTs = endTs,
-                distanceKm = d.getDouble("distanceKm") ?: 0.0,
-                durationMin = durationMin,
+                distanceKm = dist,
+                durationMin = dur,
                 mode = mode,
-                startLat = d.getDouble("startLat"),
-                startLon = d.getDouble("startLon"),
-                endLat = d.getDouble("endLat"),
-                endLon = d.getDouble("endLon"),
-                avgSpeedMps = d.getDouble("avgSpeedMps") ?: 0.0,
-                elevationGainM = d.getDouble("elevationGainM") ?: 0.0,
+                startLat = startLat,
+                startLon = startLon,
+                endLat = endLat,
+                endLon = endLon,
+                avgSpeedMps = avg,
+                elevationGainM = elev,
                 steps = steps,
-                photoBeforeUri = d.getString("photoBeforeUri"),
-                photoAfterUri = d.getString("photoAfterUri"),
-                weatherTempC = d.getDouble("weatherTempC"),
-                weatherWindKmh = d.getDouble("weatherWindKmh"),
-                weatherCode = weatherCode
+                photoBeforeUri = pb,
+                photoAfterUri = pa,
+                weatherTempC = wt,
+                weatherWindKmh = ww,
+                weatherCode = wc
             )
+        }
+
+        // 2) limpar local desse user
+        val local = activityDao.getAllForUser(uid)
+        for (s in local) {
+            pointDao.deleteBySession(s.id)
+            activityDao.deleteByIdForUser(uid, s.id)
+        }
+
+        // 3) inserir sessões
+        for (s in remoteSessions) {
+            activityDao.upsert(s)
+        }
+
+        for (s in remoteSessions) {
+            val pointsCol = sessionsCol.document(s.id).collection("points")
+
+            val pointsSnap = try {
+                pointsCol.orderBy("ts").get(Source.SERVER).await()
+            } catch (_: Exception) {
+                pointsCol.orderBy("ts").get(Source.CACHE).await()
+            }
+
+            val points = pointsSnap.documents.mapNotNull { p ->
+                val ts = p.getLong("ts") ?: return@mapNotNull null
+                val lat = p.getDouble("lat") ?: return@mapNotNull null
+                val lon = p.getDouble("lon") ?: return@mapNotNull null
+
+                val acc = p.getDouble("accuracyM")?.toFloat()
+                val spd = p.getDouble("speedMps")?.toFloat()
+                val alt = p.getDouble("altitudeM")
+
+                TrackPointEntity(
+                    id = 0,
+                    sessionId = s.id,
+                    ts = ts,
+                    lat = lat,
+                    lon = lon,
+                    accuracyM = acc,
+                    speedMps = spd,
+                    altitudeM = alt
+                )
+            }
+
+            pointDao.deleteBySession(s.id)
+            if (points.isNotEmpty()) pointDao.insertAll(points)
         }
     }
 
-    private suspend fun downloadTrackPoints(uid: String, sessionId: String): List<TrackPointEntity> {
-        val snap = fs.collection("users").document(uid)
-            .collection("sessions").document(sessionId)
-            .collection("points")
-            .orderBy("ts", com.google.firebase.firestore.Query.Direction.ASCENDING)
-            .get()
-            .await()
-
-        return snap.documents.mapNotNull { d ->
-            val ts = d.getLong("ts") ?: d.id.toLongOrNull() ?: return@mapNotNull null
-            val lat = d.getDouble("lat") ?: return@mapNotNull null
-            val lon = d.getDouble("lon") ?: return@mapNotNull null
-
-            TrackPointEntity(
-                sessionId = sessionId,
-                ts = ts,
-                lat = lat,
-                lon = lon,
-                accuracyM = d.getDouble("accuracyM")?.toFloat(),
-                speedMps = d.getDouble("speedMps")?.toFloat(),
-                altitudeM = d.getDouble("altitudeM")
-            )
-        }
-    }
 }

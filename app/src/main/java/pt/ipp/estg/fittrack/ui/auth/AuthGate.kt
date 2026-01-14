@@ -39,23 +39,19 @@ fun AuthGate() {
 
     var profile by remember { mutableStateOf<UserProfile?>(null) }
     var loading by remember { mutableStateOf(false) }
-
-    // ✅ evita “piscar” para loading outra vez para o mesmo uid
     var loadedUid by remember { mutableStateOf<String?>(null) }
 
-    // ✅ controla sync-down sem bloquear UI para sempre
-    var syncing by remember { mutableStateOf(false) }
+    // sync-down: controla “READY”
     var syncedUid by remember { mutableStateOf<String?>(null) }
 
     val uid = firebaseUser?.uid
 
+    // --- Load profile (1x por uid) ---
     LaunchedEffect(uid) {
-        // logout
         if (uid == null) {
             TrackingPrefs.clearUser(context)
             profile = null
             loadedUid = null
-            syncing = false
             syncedUid = null
             loading = false
             return@LaunchedEffect
@@ -73,8 +69,6 @@ fun AuthGate() {
             createdAt = System.currentTimeMillis()
         )
 
-        Log.d("FitTrack", "AuthGate: logged user uid=$uid email=${firebaseUser?.email}")
-
         try {
             val loaded = withContext(Dispatchers.IO) {
                 runCatching {
@@ -86,64 +80,65 @@ fun AuthGate() {
 
             profile = loaded ?: fallback
             loadedUid = uid
-
-            Log.d("FitTrack", "AuthGate: profile ready name=${profile?.name} email=${profile?.email}")
         } catch (e: Exception) {
             Log.e("AuthGate", "loadOrCreateProfile failed", e)
             profile = fallback
             loadedUid = uid
         } finally {
             loading = false
-            Log.d("FitTrack", "AuthGate: loading=false")
         }
     }
 
     // --- Logged out ---
     if (firebaseUser == null) {
         AuthScreen(
-            onLogin = { email, pass ->
-                authRepo.login(email, pass)
-            },
+            onLogin = { email, pass -> authRepo.login(email, pass) },
             onRegister = { name, email, pass ->
                 authRepo.register(email, pass)
                 val u = auth.currentUser ?: return@AuthScreen
                 runCatching { profileRepo.setNameAndEmailOnRegister(u.uid, name, email) }
-                Log.d("FitTrack", "AuthGate uid=${u.uid} email=${u.email}")
             },
-            onResetPassword = { email ->
-                authRepo.sendPasswordReset(email)
-            }
+            onResetPassword = { email -> authRepo.sendPasswordReset(email) }
         )
         return
     }
 
-    if (profile == null) {
+    // --- Enquanto não houver profile, loading ---
+    val p = profile
+    if (loading || p == null) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             CircularProgressIndicator()
         }
         return
     }
 
-    val p = profile!!
-
+    // --- Guardar prefs ---
     LaunchedEffect(p.uid, p.name, p.phone) {
         TrackingPrefs.setUser(context, p.uid, p.name, p.phone)
     }
 
+    // --- Sync-down 1x por uid (não cancela / não entra em loop) ---
     LaunchedEffect(p.uid) {
         if (syncedUid == p.uid) return@LaunchedEffect
 
-        syncing = true
         try {
             withContext(Dispatchers.IO) {
-                FirebaseSync.syncDownAndReconcile(context, p.uid)
+                FirebaseSync.syncDownAndReplace(context, p.uid)
             }
-            syncedUid = p.uid
         } catch (e: Exception) {
-            Log.e("AuthGate", "syncDownAndReconcile failed", e)
+            Log.e("AuthGate", "syncDownAndReplace failed", e)
         } finally {
-            syncing = false
+            // ✅ mesmo que falhe, libertamos o UI (para não ficar preso)
+            syncedUid = p.uid
         }
+    }
+
+    // --- Bloqueia UI até syncedUid == uid ---
+    if (syncedUid != p.uid) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator()
+        }
+        return
     }
 
     AppShell(
