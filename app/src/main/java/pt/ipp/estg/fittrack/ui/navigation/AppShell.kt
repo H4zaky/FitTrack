@@ -20,6 +20,7 @@ import pt.ipp.estg.fittrack.data.local.db.DbProvider
 import pt.ipp.estg.fittrack.ui.detail.SessionDetailScreen
 import pt.ipp.estg.fittrack.ui.screens.activity.ActivityScreen
 import pt.ipp.estg.fittrack.ui.screens.friends.FriendsScreen
+import pt.ipp.estg.fittrack.ui.screens.history.CompareSessionsScreen
 import pt.ipp.estg.fittrack.ui.screens.history.HistoryScreen
 import pt.ipp.estg.fittrack.ui.screens.settings.SettingsScreen
 import pt.ipp.estg.fittrack.ui.screens.social.SocialScreen
@@ -52,7 +53,8 @@ fun AppShell(
     val showBottomBar = (currentRoute == null) || (currentRoute in bottomRoutes)
 
     val isDetailRoute = currentRoute == Screen.Detail.routePattern || (currentRoute?.startsWith("detail/") == true)
-    val showBack = (currentRoute == Screen.Settings.route) || isDetailRoute
+    val isCompareRoute = currentRoute == Screen.Compare.routePattern || (currentRoute?.startsWith("compare/") == true)
+    val showBack = (currentRoute == Screen.Settings.route) || isDetailRoute || isCompareRoute
 
     ModalNavigationDrawer(
         drawerState = drawerState,
@@ -123,7 +125,10 @@ fun AppShell(
                     HistoryScreen(
                         activityDao = activityDao,
                         userId = userId,
-                        onOpenSession = { sid -> navController.navigate(Screen.Detail.route(sid)) }
+                        onOpenSession = { sid -> navController.navigate(Screen.Detail.route(sid)) },
+                        onCompareSessions = { firstId, secondId ->
+                            navController.navigate(Screen.Compare.route(firstId, secondId))
+                        }
                     )
                 }
 
@@ -158,6 +163,18 @@ fun AppShell(
                         activityDao = activityDao,
                         trackPointDao = trackPointDao,
                         onDeleted = { navController.popBackStack() }
+                    )
+                }
+
+                composable(Screen.Compare.routePattern) { backStack ->
+                    val firstId = backStack.arguments?.getString("firstId") ?: return@composable
+                    val secondId = backStack.arguments?.getString("secondId") ?: return@composable
+                    CompareSessionsScreen(
+                        userId = userId,
+                        firstSessionId = firstId,
+                        secondSessionId = secondId,
+                        activityDao = activityDao,
+                        trackPointDao = trackPointDao
                     )
                 }
             }

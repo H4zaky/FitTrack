@@ -23,6 +23,11 @@ sealed class Screen(
         fun route(id: String) = "detail/$id"
         const val routePattern = "detail/{id}"
     }
+
+    data object Compare : Screen("compare/{firstId}/{secondId}", "Comparar") {
+        fun route(firstId: String, secondId: String) = "compare/$firstId/$secondId"
+        const val routePattern = "compare/{firstId}/{secondId}"
+    }
 }
 
 val bottomScreens = listOf(Screen.Activity, Screen.History, Screen.Friends, Screen.Social)

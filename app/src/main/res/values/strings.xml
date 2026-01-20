@@ -43,4 +43,8 @@
 
     <string name="notif_overtaken_title">Foste ultrapassado</string>
     <string name="notif_overtaken_body">Um amigo passou-te no ranking.</string>
+
+    <string name="language">Idioma</string>
+    <string name="language_english">English</string>
+    <string name="language_portuguese">Português</string>
 </resources>
