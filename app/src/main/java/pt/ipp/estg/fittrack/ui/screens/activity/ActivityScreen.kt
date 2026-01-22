@@ -50,6 +50,7 @@ import kotlin.math.max
 private enum class ActivityType(val label: String) {
     WALKING("Walking"),
     RUNNING("Running"),
+    CYCLING("Cycling"),
     OTHER("Other")
 }
 
@@ -416,6 +417,7 @@ fun ActivityScreen(userName: String) {
                     }
 
                     if (canApplyDetection) {
+                        val detectedLabel = detectedType.label
                         FilledTonalButton(
                             onClick = { detectedType.let { selectedType = it } },
                             modifier = Modifier.fillMaxWidth()

@@ -14,7 +14,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.Group
-import androidx.compose.material.icons.outlined.Message
+import androidx.compose.material.icons.automirrored.outlined.Message
 import androidx.compose.material.icons.outlined.Phone
 import androidx.compose.material.icons.outlined.PersonAddAlt
 import androidx.compose.material3.*
@@ -300,7 +300,6 @@ private fun FriendRow(
     onRemove: () -> Unit
 ) {
     val context = LocalContext.current
-
     Surface(
         shape = RoundedCornerShape(16.dp),
         tonalElevation = 2.dp,
@@ -345,7 +344,7 @@ private fun FriendRow(
                             context.startActivity(intent)
                         }
                     ) {
-                        Icon(Icons.Outlined.Message, contentDescription = "SMS")
+                        Icon(Icons.AutoMirrored.Outlined.Message, contentDescription = "SMS")
                     }
                     IconButton(onClick = onRemove) {
                         Icon(Icons.Outlined.DeleteOutline, contentDescription = "Remover")

@@ -10,6 +10,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
@@ -81,6 +82,7 @@ fun HistoryScreen(
                     }
                 }
             }
+
             items(items, key = { it.id }) { s ->
                 Card(
                     modifier = Modifier.fillMaxWidth()
