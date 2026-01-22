@@ -1,5 +1,7 @@
 package pt.ipp.estg.fittrack.ui.screens.friends
 
+import android.content.Intent
+import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -12,6 +14,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.Group
+import androidx.compose.material.icons.automirrored.outlined.Message
+import androidx.compose.material.icons.outlined.Phone
 import androidx.compose.material.icons.outlined.PersonAddAlt
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -295,6 +299,7 @@ private fun FriendRow(
     phone: String,
     onRemove: () -> Unit
 ) {
+    val context = LocalContext.current
     Surface(
         shape = RoundedCornerShape(16.dp),
         tonalElevation = 2.dp,
@@ -320,8 +325,30 @@ private fun FriendRow(
             headlineContent = { Text(name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
             supportingContent = { Text(phone, maxLines = 1, overflow = TextOverflow.Ellipsis) },
             trailingContent = {
-                IconButton(onClick = onRemove) {
-                    Icon(Icons.Outlined.DeleteOutline, contentDescription = "Remover")
+                Row {
+                    IconButton(
+                        onClick = {
+                            val intent = Intent(Intent.ACTION_DIAL).apply {
+                                data = Uri.parse("tel:$phone")
+                            }
+                            context.startActivity(intent)
+                        }
+                    ) {
+                        Icon(Icons.Outlined.Phone, contentDescription = "Ligar")
+                    }
+                    IconButton(
+                        onClick = {
+                            val intent = Intent(Intent.ACTION_SENDTO).apply {
+                                data = Uri.parse("smsto:$phone")
+                            }
+                            context.startActivity(intent)
+                        }
+                    ) {
+                        Icon(Icons.AutoMirrored.Outlined.Message, contentDescription = "SMS")
+                    }
+                    IconButton(onClick = onRemove) {
+                        Icon(Icons.Outlined.DeleteOutline, contentDescription = "Remover")
+                    }
                 }
             }
         )

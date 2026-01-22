@@ -43,4 +43,8 @@
 
     <string name="notif_overtaken_title">You were overtaken</string>
     <string name="notif_overtaken_body">A friend passed you on the leaderboard.</string>
+
+    <string name="language">Language</string>
+    <string name="language_english">English</string>
+    <string name="language_portuguese">Portuguese</string>
 </resources>

@@ -1,5 +1,6 @@
 package pt.ipp.estg.fittrack.ui.screens.settings
 
+import android.app.Activity
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -9,6 +10,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuAnchorType
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -24,6 +31,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import pt.ipp.estg.fittrack.R
+import java.util.Locale
 
 @Composable
 fun SettingsScreen(
@@ -106,6 +114,10 @@ fun SettingsScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
+        LanguageSelector()
+
+        Spacer(modifier = Modifier.height(16.dp))
+
         Button(
             onClick = {
                 val n = name.trim()
@@ -146,4 +158,67 @@ fun SettingsScreen(
             Text(text = stringResource(R.string.btn_logout))
         }
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun LanguageSelector() {
+    val context = LocalContext.current
+    val activity = context as? Activity
+    val languages = listOf(
+        stringResource(R.string.language_english),
+        stringResource(R.string.language_portuguese)
+    )
+    val currentLocale = context.resources.configuration.locales[0]
+    val initialLanguage = if (currentLocale.language == "pt") languages[1] else languages[0]
+    var expanded by remember { mutableStateOf(false) }
+    var selectedLanguage by remember { mutableStateOf(initialLanguage) }
+
+    Text(
+        text = stringResource(R.string.language),
+        style = MaterialTheme.typography.titleMedium,
+        modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)
+    )
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = !expanded }
+    ) {
+        OutlinedTextField(
+            value = selectedLanguage,
+            onValueChange = {},
+            readOnly = true,
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+        )
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            languages.forEach { language ->
+                DropdownMenuItem(
+                    text = { Text(language) },
+                    onClick = {
+                        selectedLanguage = language
+                        expanded = false
+                        val newLocale = if (language == languages[1]) "pt" else "en"
+                        if (newLocale != currentLocale.language) {
+                            activity?.let { setLocale(it, newLocale) }
+                        }
+                    }
+                )
+            }
+        }
+    }
+}
+
+private fun setLocale(activity: Activity, languageCode: String) {
+    val locale = Locale.forLanguageTag(languageCode)
+    Locale.setDefault(locale)
+    val resources = activity.resources
+    val config = resources.configuration
+    config.setLocale(locale)
+    activity.applyOverrideConfiguration(config)
+    activity.recreate()
 }
