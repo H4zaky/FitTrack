@@ -20,7 +20,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AutoMode
 import androidx.compose.material.icons.automirrored.outlined.DirectionsRun
 import androidx.compose.material.icons.automirrored.outlined.DirectionsWalk
-import androidx.compose.material.icons.outlined.DirectionsBike
 import androidx.compose.material.icons.outlined.Flag
 import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material.icons.outlined.NotificationsActive
@@ -29,6 +28,7 @@ import androidx.compose.material.icons.outlined.Speed
 import androidx.compose.material.icons.outlined.Timer
 import androidx.compose.material.icons.outlined.WbSunny
 import androidx.compose.material3.*
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -419,10 +419,10 @@ fun ActivityScreen(userName: String) {
                     if (canApplyDetection) {
                         val detectedLabel = detectedType.label
                         FilledTonalButton(
-                            onClick = { selectedType = detectedType },
+                            onClick = { detectedType.let { selectedType = it } },
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text("Usar deteção como tipo manual ($detectedLabel)")
+                            Text("Usar deteção como tipo manual (${detectedType?.label})")
                         }
                     }
                 }
@@ -447,8 +447,8 @@ fun ActivityScreen(userName: String) {
                             label = { Text("Tipo") },
                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
                             modifier = Modifier
-                                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, enabled = !isTracking)
-                                .fillMaxWidth()
+                                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable,
+                                    enabled = !isTracking).fillMaxWidth()
                         )
                         ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
                             ActivityType.entries.forEach { t ->
@@ -458,7 +458,6 @@ fun ActivityScreen(userName: String) {
                                             val icon = when (t) {
                                                 ActivityType.WALKING -> Icons.AutoMirrored.Outlined.DirectionsWalk
                                                 ActivityType.RUNNING -> Icons.AutoMirrored.Outlined.DirectionsRun
-                                                ActivityType.CYCLING -> Icons.Outlined.DirectionsBike
                                                 ActivityType.OTHER -> Icons.Outlined.Flag
                                             }
                                             Icon(icon, contentDescription = null)

@@ -15,6 +15,7 @@ playServicesLocation = "21.3.0"
 playServicesMaps = "19.2.0"
 mapsCompose = "7.0.0"
 playServicesActivityRecognition = "21.3.0"
+material3 = "1.4.0"
 
 
 [libraries]
@@ -43,6 +44,7 @@ maps-compose = { module = "com.google.maps.android:maps-compose", version.ref = 
 androidx-room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
 androidx-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
 androidx-room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
+androidx-material3 = { group = "androidx.compose.material3", name = "material3", version.ref = "material3" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
