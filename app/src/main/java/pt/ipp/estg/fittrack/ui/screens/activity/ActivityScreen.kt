@@ -18,8 +18,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AutoMode
-import androidx.compose.material.icons.outlined.DirectionsRun
-import androidx.compose.material.icons.outlined.DirectionsWalk
+import androidx.compose.material.icons.automirrored.outlined.DirectionsRun
+import androidx.compose.material.icons.automirrored.outlined.DirectionsWalk
 import androidx.compose.material.icons.outlined.Flag
 import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material.icons.outlined.NotificationsActive
@@ -28,6 +28,7 @@ import androidx.compose.material.icons.outlined.Speed
 import androidx.compose.material.icons.outlined.Timer
 import androidx.compose.material.icons.outlined.WbSunny
 import androidx.compose.material3.*
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -308,7 +309,7 @@ fun ActivityScreen(userName: String) {
                             AssistChip(
                                 onClick = {},
                                 label = { Text("Movimento") },
-                                leadingIcon = { Icon(Icons.Outlined.DirectionsWalk, null) }
+                                leadingIcon = { Icon(Icons.AutoMirrored.Outlined.DirectionsWalk, null) }
                             )
                         }
                         Button(
@@ -353,7 +354,7 @@ fun ActivityScreen(userName: String) {
                         StatTile(
                             title = "Passos",
                             value = steps.toString(),
-                            icon = { Icon(Icons.Outlined.DirectionsWalk, null) },
+                            icon = { Icon(Icons.AutoMirrored.Outlined.DirectionsWalk, null) },
                             modifier = Modifier.weight(1f)
                         )
                     }
@@ -391,7 +392,7 @@ fun ActivityScreen(userName: String) {
                         )
                     }
 
-                    Divider()
+                    HorizontalDivider()
 
                     Row(
                         Modifier.fillMaxWidth(),
@@ -400,7 +401,7 @@ fun ActivityScreen(userName: String) {
                         AssistChip(
                             onClick = {},
                             label = { Text("Última: $lastType") },
-                            leadingIcon = { Icon(Icons.Outlined.DirectionsRun, null) }
+                            leadingIcon = { Icon(Icons.AutoMirrored.Outlined.DirectionsRun, null) }
                         )
                         AssistChip(
                             onClick = {},
@@ -416,10 +417,10 @@ fun ActivityScreen(userName: String) {
 
                     if (canApplyDetection) {
                         FilledTonalButton(
-                            onClick = { selectedType = detectedType!! },
+                            onClick = { detectedType.let { selectedType = it } },
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text("Usar deteção como tipo manual (${detectedType!!.label})")
+                            Text("Usar deteção como tipo manual (${detectedType?.label})")
                         }
                     }
                 }
@@ -443,7 +444,9 @@ fun ActivityScreen(userName: String) {
                             enabled = !isTracking,
                             label = { Text("Tipo") },
                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                            modifier = Modifier.menuAnchor().fillMaxWidth()
+                            modifier = Modifier
+                                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable,
+                                    enabled = !isTracking).fillMaxWidth()
                         )
                         ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
                             ActivityType.entries.forEach { t ->
@@ -451,8 +454,8 @@ fun ActivityScreen(userName: String) {
                                     text = {
                                         Row(verticalAlignment = Alignment.CenterVertically) {
                                             val icon = when (t) {
-                                                ActivityType.WALKING -> Icons.Outlined.DirectionsWalk
-                                                ActivityType.RUNNING -> Icons.Outlined.DirectionsRun
+                                                ActivityType.WALKING -> Icons.AutoMirrored.Outlined.DirectionsWalk
+                                                ActivityType.RUNNING -> Icons.AutoMirrored.Outlined.DirectionsRun
                                                 ActivityType.OTHER -> Icons.Outlined.Flag
                                             }
                                             Icon(icon, contentDescription = null)

@@ -1,7 +1,7 @@
 package pt.ipp.estg.fittrack.ui.navigation
 
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.DirectionsRun
+import androidx.compose.material.icons.automirrored.filled.DirectionsRun
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.History
@@ -13,7 +13,7 @@ sealed class Screen(
     val label: String,
     val icon: ImageVector? = null
 ) {
-    data object Activity : Screen("activity", "Atividade", Icons.Filled.DirectionsRun)
+    data object Activity : Screen("activity", "Atividade", Icons.AutoMirrored.Filled.DirectionsRun)
     data object History : Screen("history", "Histórico", Icons.Filled.History)
     data object Friends : Screen("friends", "Amigos", Icons.Filled.Group)
     data object Social : Screen("social", "Rankings", Icons.Filled.EmojiEvents)

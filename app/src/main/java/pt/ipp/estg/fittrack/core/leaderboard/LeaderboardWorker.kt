@@ -46,7 +46,7 @@ class LeaderboardWorker(
         val isSameMonth = lastMonth == month
         val rankGotWorse = isSameMonth && lastRank > 0 && myRank > lastRank
 
-        if (rankGotWorse && overtakerIsFriend && overtaker != null) {
+        if (rankGotWorse && overtakerIsFriend) {
             val lastOverUid = TrackingPrefs.ensuringOvertakerUid(applicationContext)
             if (lastOverUid != overtaker.uid) {
                 LeaderboardNotifier.notifyOvertaken(applicationContext, overtaker.name, myRank)

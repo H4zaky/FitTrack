@@ -12,6 +12,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.MaterialTheme
@@ -187,7 +188,9 @@ private fun LanguageSelector() {
             onValueChange = {},
             readOnly = true,
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-            modifier = Modifier.fillMaxWidth().menuAnchor()
+            modifier = Modifier
+                .fillMaxWidth()
+                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
         )
         ExposedDropdownMenu(
             expanded = expanded,
@@ -211,11 +214,11 @@ private fun LanguageSelector() {
 }
 
 private fun setLocale(activity: Activity, languageCode: String) {
-    val locale = Locale(languageCode)
+    val locale = Locale.forLanguageTag(languageCode)
     Locale.setDefault(locale)
     val resources = activity.resources
     val config = resources.configuration
     config.setLocale(locale)
-    resources.updateConfiguration(config, resources.displayMetrics)
+    activity.applyOverrideConfiguration(config)
     activity.recreate()
 }
