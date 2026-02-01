@@ -74,8 +74,17 @@
     <string name="friends_unknown_initial">?</string>
     <string name="friends_call">Ligar</string>
     <string name="friends_sms">SMS</string>
+    <string name="friends_view_activities">Ver atividades</string>
+    <string name="friends_no_account">Este amigo ainda não tem conta.</string>
     <string name="friends_empty_title">Ainda não tens amigos</string>
     <string name="friends_empty_body">Adiciona amigos para comparar quilómetros no ranking.</string>
+
+    <string name="public_sessions_title">Atividades públicas de %1$s</string>
+    <string name="public_sessions_empty">Este amigo ainda não tem sessões públicas.</string>
+    <string name="public_session_detail_title">Detalhe público</string>
+    <string name="public_session_not_found">Sessão pública não encontrada.</string>
+    <string name="public_session_map_title">Mapa</string>
+    <string name="public_session_no_points">Sem pontos de GPS disponíveis.</string>
 
     <string name="login_welcome">Bem-vindo 👋</string>
     <string name="login_prompt_name">Como te chamas?</string>
