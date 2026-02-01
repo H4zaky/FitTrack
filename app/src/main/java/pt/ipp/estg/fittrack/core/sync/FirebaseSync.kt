@@ -35,6 +35,11 @@ object FirebaseSync {
             "avgSpeedMps" to s.avgSpeedMps,
             "elevationGainM" to s.elevationGainM,
             "steps" to s.steps.toLong(),
+            "startLat" to s.startLat,
+            "startLon" to s.startLon,
+            "endLat" to s.endLat,
+            "endLon" to s.endLon,
+            "isPublic" to s.isPublic,
             "photoBeforeUri" to s.photoBeforeUri,
             "photoAfterUri" to s.photoAfterUri,
             "weatherTempC" to s.weatherTempC,
@@ -158,6 +163,8 @@ object FirebaseSync {
             val endLat = d.getDouble("endLat")
             val endLon = d.getDouble("endLon")
 
+            val isPublic = d.getBoolean("isPublic") ?: false
+
             val avg = d.getDouble("avgSpeedMps") ?: 0.0
             val elev = d.getDouble("elevationGainM") ?: 0.0
             val steps = (d.getLong("steps") ?: 0L).toInt()
@@ -179,6 +186,7 @@ object FirebaseSync {
                 distanceKm = dist,
                 durationMin = dur,
                 mode = mode,
+                isPublic = isPublic,
                 startLat = startLat,
                 startLon = startLon,
                 endLat = endLat,
