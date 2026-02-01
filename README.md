@@ -188,6 +188,16 @@ Estruturas (sugeridas e usadas no projeto):
 - `users/{uid}/sessions/{sid}/points/{pid}`: pontos da sessão
 - `leaderboards/{yyyy-MM}/users/{uid}`: agregados mensais (`distanceKm`, `steps`, `sessions`, `name`)
 
+#### 6.2.1 Regras de segurança (Firestore)
+
+As regras estão em `firestore.rules` e seguem o requisito de **privacidade por utilizador** e acesso controlado:
+- `users/{uid}` e subcoleções (`friends`, `sessions`, `points`): leitura/escrita apenas pelo próprio.
+- `public_sessions/{sid}`: escrita apenas pelo dono (`ownerUid == request.auth.uid`); leitura apenas pelo dono ou amigos (via `users/{ownerUid}/friends/{request.auth.uid}`).
+- `leaderboards/{month}/users/{uid}`: leitura por utilizadores autenticados; escrita apenas pelo próprio documento.
+- `leaderboards/{month}/global/{docId}`: leitura autenticada; escrita reservada a backend (admin).  
+
+Validação recomendada: usar o **Firestore Emulator** (se disponível) com duas contas (dono e amigo) para garantir que as queries esperadas funcionam e acessos indevidos falham.
+
 ### 6.3 Sincronização (offline-first)
 
 Estratégia típica implementada:
