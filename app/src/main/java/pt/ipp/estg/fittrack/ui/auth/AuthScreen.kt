@@ -8,9 +8,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
+import pt.ipp.estg.fittrack.R
 
 @Composable
 fun AuthScreen(
@@ -26,6 +28,9 @@ fun AuthScreen(
     var pass by remember { mutableStateOf("") }
     var msg by remember { mutableStateOf<String?>(null) }
     var busy by remember { mutableStateOf(false) }
+    val nameRequiredMessage = stringResource(R.string.auth_name_required)
+    val resetSentMessage = stringResource(R.string.auth_reset_sent)
+    val genericErrorMessage = stringResource(R.string.auth_error_generic)
 
     val bg = Brush.verticalGradient(
         listOf(
@@ -51,7 +56,11 @@ fun AuthScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text(
-                    if (isRegister) "Criar conta" else "Entrar",
+                    if (isRegister) {
+                        stringResource(R.string.auth_create_account)
+                    } else {
+                        stringResource(R.string.auth_sign_in)
+                    },
                     style = MaterialTheme.typography.headlineSmall
                 )
 
@@ -59,7 +68,7 @@ fun AuthScreen(
                     OutlinedTextField(
                         value = name,
                         onValueChange = { name = it },
-                        label = { Text("Nome") },
+                        label = { Text(stringResource(R.string.field_name)) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -68,7 +77,7 @@ fun AuthScreen(
                 OutlinedTextField(
                     value = email,
                     onValueChange = { email = it },
-                    label = { Text("Email") },
+                    label = { Text(stringResource(R.string.field_email)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -76,7 +85,7 @@ fun AuthScreen(
                 OutlinedTextField(
                     value = pass,
                     onValueChange = { pass = it },
-                    label = { Text("Password") },
+                    label = { Text(stringResource(R.string.auth_password)) },
                     singleLine = true,
                     visualTransformation = PasswordVisualTransformation(),
                     modifier = Modifier.fillMaxWidth()
@@ -92,7 +101,7 @@ fun AuthScreen(
                             try {
                                 if (isRegister) {
                                     if (name.trim().isEmpty()) {
-                                        msg = "Nome é obrigatório."
+                                        msg = nameRequiredMessage
                                     } else {
                                         onRegister(name, email, pass)
                                     }
@@ -100,7 +109,7 @@ fun AuthScreen(
                                     onLogin(email, pass)
                                 }
                             } catch (e: Exception) {
-                                msg = e.message ?: "Erro"
+                                msg = e.message ?: genericErrorMessage
                             } finally {
                                 busy = false
                             }
@@ -109,7 +118,13 @@ fun AuthScreen(
                     enabled = !busy,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text(if (isRegister) "Registar" else "Login")
+                    Text(
+                        if (isRegister) {
+                            stringResource(R.string.auth_register)
+                        } else {
+                            stringResource(R.string.auth_login)
+                        }
+                    )
                 }
 
                 TextButton(
@@ -117,7 +132,13 @@ fun AuthScreen(
                     enabled = !busy,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text(if (isRegister) "Já tenho conta" else "Criar conta")
+                    Text(
+                        if (isRegister) {
+                            stringResource(R.string.auth_already_have_account)
+                        } else {
+                            stringResource(R.string.auth_create_account)
+                        }
+                    )
                 }
 
                 TextButton(
@@ -127,9 +148,9 @@ fun AuthScreen(
                             busy = true
                             try {
                                 onResetPassword(email)
-                                msg = "Email de recuperação enviado (se o email existir)."
+                                msg = resetSentMessage
                             } catch (e: Exception) {
-                                msg = e.message ?: "Erro"
+                                msg = e.message ?: genericErrorMessage
                             } finally {
                                 busy = false
                             }
@@ -138,7 +159,7 @@ fun AuthScreen(
                     enabled = !busy && email.isNotBlank(),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("Esqueci-me da password")
+                    Text(stringResource(R.string.auth_forgot_password))
                 }
             }
         }
