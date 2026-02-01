@@ -8,6 +8,7 @@ import kotlinx.coroutines.withContext
 import pt.ipp.estg.fittrack.core.notifications.NotifUtil
 import pt.ipp.estg.fittrack.core.tracking.TrackingPrefs
 import pt.ipp.estg.fittrack.data.local.db.DbProvider
+import pt.ipp.estg.fittrack.data.local.entity.LeaderboardSnapshotEntity
 
 class RankingWatchWorker(
     ctx: Context,
@@ -37,28 +38,59 @@ class RankingWatchWorker(
         val week = LeaderboardCacheRepository.weekKey()
         val dao = db.leaderboardSnapshotDao()
 
-        val myDist = dao.getOne(week, myUid)?.distanceKm ?: 0.0
-
-        val bestFriend = friendUids
+        val snapshots = (friendUids + myUid)
             .mapNotNull { uid -> dao.getOne(week, uid) }
-            .maxByOrNull { it.distanceKm }
+
+        if (snapshots.isEmpty()) return@withContext Result.success()
+
+        val currentTop = selectTopSnapshot(myUid, snapshots)
             ?: return@withContext Result.success()
 
-        val sp = ctx.getSharedPreferences("rank_watch", Context.MODE_PRIVATE)
-        val key = "rank_notified_${week}_${bestFriend.uid}"
-        val already = sp.getBoolean(key, false)
+        val lastTopUid = TrackingPrefs.getRankWatchLastTopUid(ctx, week)
+        val shouldNotify = isOvertakeTransition(
+            myUid = myUid,
+            lastTopUid = lastTopUid,
+            currentTopUid = currentTop.uid
+        )
 
-        if (bestFriend.distanceKm > myDist && !already) {
-            sp.edit().putBoolean(key, true).apply()
+        if (shouldNotify) {
             NotifUtil.notifyRankOvertaken(
                 ctx,
                 title = "Ultrapassado no ranking!",
-                body = "${bestFriend.name.ifBlank { "Um amigo" }} ultrapassou-te em distância esta semana."
+                body = "${currentTop.name.ifBlank { "Um amigo" }} ultrapassou-te em distância esta semana."
             )
-        } else if (bestFriend.distanceKm <= myDist && already) {
-            sp.edit().putBoolean(key, false).apply()
+            TrackingPrefs.setRankWatchLastNotifiedUid(ctx, week, currentTop.uid)
         }
 
+        TrackingPrefs.setRankWatchLastTopUid(ctx, week, currentTop.uid)
+
         Result.success()
+    }
+
+    companion object {
+        fun isOvertakeTransition(
+            myUid: String,
+            lastTopUid: String?,
+            currentTopUid: String?
+        ): Boolean {
+            if (currentTopUid.isNullOrBlank() || currentTopUid == myUid) return false
+            if (lastTopUid.isNullOrBlank()) return false
+            return lastTopUid == myUid
+        }
+
+        fun selectTopSnapshot(
+            myUid: String,
+            snapshots: List<LeaderboardSnapshotEntity>
+        ): LeaderboardSnapshotEntity? {
+            return snapshots.maxWithOrNull { left, right ->
+                when {
+                    left.distanceKm > right.distanceKm -> 1
+                    left.distanceKm < right.distanceKm -> -1
+                    left.uid == myUid && right.uid != myUid -> 1
+                    right.uid == myUid && left.uid != myUid -> -1
+                    else -> left.uid.compareTo(right.uid)
+                }
+            }
+        }
     }
 }

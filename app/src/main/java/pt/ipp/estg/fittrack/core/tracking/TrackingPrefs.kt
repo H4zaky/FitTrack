@@ -46,6 +46,9 @@ object TrackingPrefs {
     private const val KEY_LB_LAST_MONTH = "lb_last_month"
     private const val KEY_LB_LAST_OVERTAKER_UID = "lb_last_overtaker_uid"
 
+    private const val KEY_RANK_WATCH_LAST_TOP_UID = "rank_watch_last_top_uid"
+    private const val KEY_RANK_WATCH_LAST_NOTIFIED_UID = "rank_watch_last_notified_uid"
+
     private const val KEY_BATTERY_LOW = "battery_low"
 
     // --- user ---
@@ -137,6 +140,20 @@ object TrackingPrefs {
     fun getLastRankMonth(context: Context): String = sp(context).getString(KEY_LB_LAST_MONTH, "") ?: ""
     fun getLastRank(context: Context): Int = sp(context).getInt(KEY_LB_LAST_RANK, -1)
     fun ensuringOvertakerUid(context: Context): String? = sp(context).getString(KEY_LB_LAST_OVERTAKER_UID, null)
+
+    fun getRankWatchLastTopUid(context: Context, week: String): String? =
+        sp(context).getString("${KEY_RANK_WATCH_LAST_TOP_UID}_$week", null)
+
+    fun setRankWatchLastTopUid(context: Context, week: String, uid: String?) {
+        sp(context).edit().putString("${KEY_RANK_WATCH_LAST_TOP_UID}_$week", uid).apply()
+    }
+
+    fun getRankWatchLastNotifiedUid(context: Context, week: String): String? =
+        sp(context).getString("${KEY_RANK_WATCH_LAST_NOTIFIED_UID}_$week", null)
+
+    fun setRankWatchLastNotifiedUid(context: Context, week: String, uid: String?) {
+        sp(context).edit().putString("${KEY_RANK_WATCH_LAST_NOTIFIED_UID}_$week", uid).apply()
+    }
 
     fun isBatteryLow(context: Context): Boolean = sp(context).getBoolean(KEY_BATTERY_LOW, false)
     fun setBatteryLow(context: Context, low: Boolean) { sp(context).edit().putBoolean(KEY_BATTERY_LOW, low).apply() }
