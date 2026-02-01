@@ -16,6 +16,7 @@ import android.location.Location
 import android.os.BatteryManager
 import android.os.Build
 import android.os.IBinder
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import com.google.android.gms.location.LocationCallback
@@ -48,6 +49,7 @@ class TrackingService : Service() {
 
         private const val CHANNEL_ID = "tracking_channel"
         private const val NOTIF_ID = 1001
+        private const val TAG = "TrackingService"
         private var batteryReceiver: BroadcastReceiver? = null
         private var lastPowerSave: Boolean? = null
     }
@@ -391,6 +393,7 @@ class TrackingService : Service() {
         val batteryLow = TrackingPrefs.isBatteryLow(this)
         val lightLow = TrackingPrefs.isLightLow(this)
         val powerSave = batteryLow || lightLow
+        Log.d(TAG, "Location updates: powerSave=$powerSave batteryLow=$batteryLow lightLow=$lightLow")
 
         val isRunning = activeType.equals("Running", ignoreCase = true)
 
@@ -635,28 +638,37 @@ class TrackingService : Service() {
     private fun startBatteryMonitor() {
         if (batteryReceiver != null) return
 
-        val filter = IntentFilter(Intent.ACTION_BATTERY_CHANGED)
+        val filter = IntentFilter().apply {
+            addAction(Intent.ACTION_BATTERY_CHANGED)
+            addAction(Intent.ACTION_BATTERY_LOW)
+            addAction(Intent.ACTION_BATTERY_OKAY)
+        }
 
         batteryReceiver = object : BroadcastReceiver() {
             override fun onReceive(ctx: Context, i: Intent) {
-                val level = i.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
-                val scale = i.getIntExtra(BatteryManager.EXTRA_SCALE, 100)
-                val pct = if (level >= 0 && scale > 0) (level * 100) / scale else -1
+                when (i.action) {
+                    Intent.ACTION_BATTERY_LOW -> {
+                        updateBatteryLowState(true, "ACTION_BATTERY_LOW")
+                    }
+                    Intent.ACTION_BATTERY_OKAY -> {
+                        updateBatteryLowState(false, "ACTION_BATTERY_OKAY")
+                    }
+                    else -> {
+                        val level = i.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
+                        val scale = i.getIntExtra(BatteryManager.EXTRA_SCALE, 100)
+                        val pct = if (level >= 0 && scale > 0) (level * 100) / scale else -1
 
-                val status = i.getIntExtra(BatteryManager.EXTRA_STATUS, -1)
-                val charging = status == BatteryManager.BATTERY_STATUS_CHARGING ||
-                        status == BatteryManager.BATTERY_STATUS_FULL
+                        val status = i.getIntExtra(BatteryManager.EXTRA_STATUS, -1)
+                        val charging = status == BatteryManager.BATTERY_STATUS_CHARGING ||
+                                status == BatteryManager.BATTERY_STATUS_FULL
 
-                val lowBattery = (pct in 0..15) && !charging
-                TrackingPrefs.setBatteryLow(this@TrackingService, lowBattery)
-
-                val powerSaveNow = lowBattery || TrackingPrefs.isLightLow(this@TrackingService)
-
-                if (sessionId != null && lastPowerSave != null && lastPowerSave != powerSaveNow) {
-                    stopLocationUpdates()
-                    startLocationUpdates()
+                        val lowBattery = (pct in 0..15) && !charging
+                        updateBatteryLowState(
+                            lowBattery,
+                            "ACTION_BATTERY_CHANGED pct=$pct charging=$charging"
+                        )
+                    }
                 }
-                lastPowerSave = powerSaveNow
             }
         }
 
@@ -673,5 +685,23 @@ class TrackingService : Service() {
     private fun stopBatteryMonitor() {
         batteryReceiver?.let { runCatching { unregisterReceiver(it) } }
         batteryReceiver = null
+    }
+
+    private fun updateBatteryLowState(lowBattery: Boolean, reason: String) {
+        val prevLow = TrackingPrefs.isBatteryLow(this)
+        if (prevLow != lowBattery) {
+            TrackingPrefs.setBatteryLow(this, lowBattery)
+            Log.i(TAG, "Battery low updated=$lowBattery ($reason)")
+        } else {
+            Log.d(TAG, "Battery low unchanged=$lowBattery ($reason)")
+        }
+
+        val powerSaveNow = lowBattery || TrackingPrefs.isLightLow(this)
+        if (sessionId != null && lastPowerSave != null && lastPowerSave != powerSaveNow) {
+            Log.i(TAG, "Power save toggled=$powerSaveNow; restarting location updates")
+            stopLocationUpdates()
+            startLocationUpdates()
+        }
+        lastPowerSave = powerSaveNow
     }
 }

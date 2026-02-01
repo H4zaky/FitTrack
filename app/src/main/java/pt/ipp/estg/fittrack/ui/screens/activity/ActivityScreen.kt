@@ -18,6 +18,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AutoMode
+import androidx.compose.material.icons.outlined.BatteryAlert
 import androidx.compose.material.icons.automirrored.outlined.DirectionsRun
 import androidx.compose.material.icons.automirrored.outlined.DirectionsWalk
 import androidx.compose.material.icons.outlined.Flag
@@ -78,6 +79,7 @@ fun ActivityScreen(userName: String) {
         context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
     }
     var lightLow by remember { mutableStateOf(TrackingPrefs.isLightLow(context)) }
+    var batteryLow by remember { mutableStateOf(TrackingPrefs.isBatteryLow(context)) }
 
     DisposableEffect(sensorManager) {
         val sensor = sensorManager.getDefaultSensor(Sensor.TYPE_LIGHT)
@@ -234,6 +236,7 @@ fun ActivityScreen(userName: String) {
         while (true) {
             activeSessionId = TrackingPrefs.getActiveSessionId(context)
             startTs = TrackingPrefs.getActiveStartTs(context)
+            batteryLow = TrackingPrefs.isBatteryLow(context)
 
             val now = System.currentTimeMillis()
             if (activeSessionId != null && startTs > 0L) {
@@ -300,6 +303,13 @@ fun ActivityScreen(userName: String) {
                                 onClick = {},
                                 label = { Text("Poupança") },
                                 leadingIcon = { Icon(Icons.Outlined.WbSunny, contentDescription = null) }
+                            )
+                        }
+                        if (batteryLow) {
+                            AssistChip(
+                                onClick = {},
+                                label = { Text("Bateria baixa") },
+                                leadingIcon = { Icon(Icons.Outlined.BatteryAlert, contentDescription = null) }
                             )
                         }
                     }
@@ -608,6 +618,28 @@ fun ActivityScreen(userName: String) {
                                 Text("Modo poupança ativo", style = MaterialTheme.typography.titleSmall)
                                 Text(
                                     "Pouca luz detetada → updates menos frequentes para poupar bateria.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+
+                    if (batteryLow) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Outlined.BatteryAlert, contentDescription = null)
+                            Spacer(Modifier.width(10.dp))
+                            Column {
+                                Text("Bateria baixa detetada", style = MaterialTheme.typography.titleSmall)
+                                Text(
+                                    "Tracking ajustado para poupança: menos precisão e menos frequência.",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
