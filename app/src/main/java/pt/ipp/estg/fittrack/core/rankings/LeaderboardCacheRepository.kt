@@ -10,17 +10,25 @@ import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import pt.ipp.estg.fittrack.data.local.db.DbProvider
 import pt.ipp.estg.fittrack.data.local.entity.LeaderboardSnapshotEntity
-import java.text.SimpleDateFormat
-import java.util.Date
+import java.time.Instant
+import java.time.ZoneId
+import java.time.ZonedDateTime
+import java.time.temporal.WeekFields
 import java.util.Locale
 
 object LeaderboardCacheRepository {
 
     private val fs = FirebaseFirestore.getInstance()
 
-    fun monthKey(): String {
-        val fmt = SimpleDateFormat("yyyy-MM", Locale.US)
-        return fmt.format(Date())
+    fun weekKey(
+        now: Instant = Instant.now(),
+        zoneId: ZoneId = ZoneId.systemDefault()
+    ): String {
+        val weekFields = WeekFields.ISO
+        val date = ZonedDateTime.ofInstant(now, zoneId)
+        val weekYear = date.get(weekFields.weekBasedYear())
+        val week = date.get(weekFields.weekOfWeekBasedYear())
+        return "%d-W%02d".format(Locale.US, weekYear, week)
     }
 
     private fun dao(context: Context, uid: String) =
@@ -29,20 +37,20 @@ object LeaderboardCacheRepository {
     fun observeGlobalTop(
         context: Context,
         uidForDb: String,
-        month: String = monthKey(),
+        month: String = weekKey(),
         limit: Int = 15
     ): Flow<List<LeaderboardSnapshotEntity>> = dao(context, uidForDb).observeTop(month, limit)
 
     fun observeForUids(
         context: Context,
         uidForDb: String,
-        month: String = monthKey(),
+        month: String = weekKey(),
         uids: List<String>
     ): Flow<List<LeaderboardSnapshotEntity>> = dao(context, uidForDb).observeForUids(month, uids)
 
     suspend fun refreshGlobalTop(context: Context, uidForDb: String, limit: Int = 15) =
         withContext(Dispatchers.IO) {
-            val month = monthKey()
+            val month = weekKey()
             val ref = fs.collection("leaderboards").document(month).collection("users")
                 .orderBy("distanceKm", Query.Direction.DESCENDING)
                 .limit(limit.toLong())
@@ -79,7 +87,7 @@ object LeaderboardCacheRepository {
 
     suspend fun refreshForUids(context: Context, uidForDb: String, uids: Set<String>) =
         withContext(Dispatchers.IO) {
-            val month = monthKey()
+            val month = weekKey()
             val dao = dao(context, uidForDb)
 
             val now = System.currentTimeMillis()

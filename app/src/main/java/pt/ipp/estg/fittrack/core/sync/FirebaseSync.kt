@@ -9,9 +9,9 @@ import pt.ipp.estg.fittrack.core.publicsessions.PublicSessionsRepository
 import pt.ipp.estg.fittrack.data.local.db.DbProvider
 import pt.ipp.estg.fittrack.data.local.entity.ActivitySessionEntity
 import pt.ipp.estg.fittrack.data.local.entity.TrackPointEntity
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
+import java.time.Instant
+import java.time.ZoneId
+import pt.ipp.estg.fittrack.core.rankings.LeaderboardCacheRepository
 import com.google.firebase.firestore.FieldPath
 
 object FirebaseSync {
@@ -128,10 +128,13 @@ object FirebaseSync {
         }
     }
 
-    // leaderboards/{yyyy-MM}/users/{uid}
+    // leaderboards/{YYYY-Www}/users/{uid}
     suspend fun countSessionIntoLeaderboard(uid: String, session: ActivitySessionEntity, userName: String?) {
-        val month = SimpleDateFormat("yyyy-MM", Locale.US).format(Date(session.startTs))
-        val ref = fs.collection("leaderboards").document(month)
+        val week = LeaderboardCacheRepository.weekKey(
+            now = Instant.ofEpochMilli(session.startTs),
+            zoneId = ZoneId.systemDefault()
+        )
+        val ref = fs.collection("leaderboards").document(week)
             .collection("users").document(uid)
 
         fs.runTransaction { tx ->

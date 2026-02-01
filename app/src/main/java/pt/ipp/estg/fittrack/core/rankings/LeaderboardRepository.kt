@@ -4,8 +4,10 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.Source
 import kotlinx.coroutines.tasks.await
-import java.text.SimpleDateFormat
-import java.util.Date
+import java.time.Instant
+import java.time.ZoneId
+import java.time.ZonedDateTime
+import java.time.temporal.WeekFields
 import java.util.Locale
 
 data class LeaderboardEntry(
@@ -18,12 +20,20 @@ data class LeaderboardEntry(
 object LeaderboardRepository {
     private val fs by lazy { FirebaseFirestore.getInstance() }
 
-    private fun monthKey(ts: Long = System.currentTimeMillis()): String =
-        SimpleDateFormat("yyyy-MM", Locale.getDefault()).format(Date(ts))
+    private fun weekKey(
+        ts: Long = System.currentTimeMillis(),
+        zoneId: ZoneId = ZoneId.systemDefault()
+    ): String {
+        val weekFields = WeekFields.ISO
+        val date = ZonedDateTime.ofInstant(Instant.ofEpochMilli(ts), zoneId)
+        val weekYear = date.get(weekFields.weekBasedYear())
+        val week = date.get(weekFields.weekOfWeekBasedYear())
+        return "%d-W%02d".format(Locale.getDefault(), weekYear, week)
+    }
 
     suspend fun getTopGlobal(limit: Long = 20, source: Source = Source.DEFAULT): List<LeaderboardEntry> {
-        val ym = monthKey()
-        val snap = fs.collection("leaderboards").document(ym)
+        val week = weekKey()
+        val snap = fs.collection("leaderboards").document(week)
             .collection("global")
             .orderBy("distanceKm", Query.Direction.DESCENDING)
             .limit(limit)
@@ -44,8 +54,8 @@ object LeaderboardRepository {
         val clean = uids.map { it.trim() }.filter { it.isNotBlank() }.toSet()
         if (clean.isEmpty()) return emptyList()
 
-        val ym = monthKey()
-        val col = fs.collection("leaderboards").document(ym).collection("global")
+        val week = weekKey()
+        val col = fs.collection("leaderboards").document(week).collection("global")
 
         val out = mutableListOf<LeaderboardEntry>()
         for (uid in clean) {

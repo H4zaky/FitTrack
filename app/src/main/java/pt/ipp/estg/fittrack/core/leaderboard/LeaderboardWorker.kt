@@ -3,11 +3,9 @@ package pt.ipp.estg.fittrack.core.leaderboard
 import android.content.Context
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import pt.ipp.estg.fittrack.core.rankings.LeaderboardCacheRepository
 import pt.ipp.estg.fittrack.core.tracking.TrackingPrefs
 import pt.ipp.estg.fittrack.data.local.db.DbProvider
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 class LeaderboardWorker(
     appContext: Context,
@@ -18,10 +16,10 @@ class LeaderboardWorker(
         val uid = TrackingPrefs.getUserId(applicationContext).orEmpty()
         if (uid.isBlank()) return Result.success()
 
-        val month = SimpleDateFormat("yyyy-MM", Locale.getDefault()).format(Date())
+        val week = LeaderboardCacheRepository.weekKey()
         val repo = LeaderboardRepository()
 
-        val entries = runCatching { repo.fetchGlobal(month, 200) }.getOrNull() ?: return Result.success()
+        val entries = runCatching { repo.fetchGlobal(week, 200) }.getOrNull() ?: return Result.success()
         if (entries.isEmpty()) return Result.success()
 
         val myIndex = entries.indexOfFirst { it.uid == uid }
@@ -43,7 +41,7 @@ class LeaderboardWorker(
         val lastMonth = TrackingPrefs.getLastRankMonth(applicationContext)
         val lastRank = TrackingPrefs.getLastRank(applicationContext)
 
-        val isSameMonth = lastMonth == month
+        val isSameMonth = lastMonth == week
         val rankGotWorse = isSameMonth && lastRank > 0 && myRank > lastRank
 
         if (rankGotWorse && overtakerIsFriend) {
@@ -51,9 +49,9 @@ class LeaderboardWorker(
             if (lastOverUid != overtaker.uid) {
                 LeaderboardNotifier.notifyOvertaken(applicationContext, overtaker.name, myRank)
             }
-            TrackingPrefs.setLastRank(applicationContext, month, myRank, overtaker.uid)
+            TrackingPrefs.setLastRank(applicationContext, week, myRank, overtaker.uid)
         } else {
-            TrackingPrefs.setLastRank(applicationContext, month, myRank, overtaker?.uid)
+            TrackingPrefs.setLastRank(applicationContext, week, myRank, overtaker?.uid)
         }
 
         return Result.success()
