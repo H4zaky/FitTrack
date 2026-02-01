@@ -1,6 +1,7 @@
 package pt.ipp.estg.fittrack
 
 import android.app.Application
+import android.util.Log
 import androidx.work.Constraints
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.NetworkType
@@ -26,5 +27,7 @@ class FitTrackApp : Application() {
             ExistingPeriodicWorkPolicy.UPDATE,
             req
         )
+
+        Log.i("FitTrackApp", "RankingWatchWorker enqueued")
     }
 }
