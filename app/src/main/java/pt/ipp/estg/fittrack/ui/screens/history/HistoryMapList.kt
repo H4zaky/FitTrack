@@ -15,8 +15,8 @@ import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.LatLngBounds
 import com.google.maps.android.compose.GoogleMap
 import com.google.maps.android.compose.Marker
-import com.google.maps.android.compose.rememberMarkerState
 import com.google.maps.android.compose.rememberCameraPositionState
+import com.google.maps.android.compose.rememberUpdatedMarkerState
 import pt.ipp.estg.fittrack.data.local.entity.ActivitySessionEntity
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -67,7 +67,7 @@ fun HistoryMapList(
     ) {
         sessionsWithCoords.forEach { session ->
             val position = LatLng(session.startLat!!, session.startLon!!)
-            val markerState = rememberMarkerState(position = position)
+            val markerState = rememberUpdatedMarkerState(position = position)
             Marker(
                 state = markerState,
                 title = session.title,

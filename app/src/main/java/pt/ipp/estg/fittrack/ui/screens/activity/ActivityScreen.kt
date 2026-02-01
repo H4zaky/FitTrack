@@ -433,7 +433,7 @@ fun ActivityScreen(
                             onClick = { detectedType.let { selectedType = it } },
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text("Usar deteção como tipo manual (${detectedType?.label})")
+                            Text("Usar deteção como tipo manual ($detectedLabel)")
                         }
                     }
                 }
@@ -469,7 +469,7 @@ fun ActivityScreen(
                                             val icon = when (t) {
                                                 ActivityType.WALKING -> Icons.AutoMirrored.Outlined.DirectionsWalk
                                                 ActivityType.RUNNING -> Icons.AutoMirrored.Outlined.DirectionsRun
-                                                ActivityType.CYCLING -> Icons.Outlined.DirectionsBike
+                                                ActivityType.CYCLING -> Icons.AutoMirrored.Outlined.DirectionsBike
                                                 ActivityType.OTHER -> Icons.Outlined.Flag
                                             }
                                             Icon(icon, contentDescription = null)

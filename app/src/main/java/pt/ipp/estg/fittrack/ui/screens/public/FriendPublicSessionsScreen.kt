@@ -17,7 +17,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
+import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -35,7 +35,6 @@ import com.google.maps.android.compose.GoogleMap
 import com.google.maps.android.compose.Marker
 import com.google.maps.android.compose.Polyline
 import com.google.maps.android.compose.rememberCameraPositionState
-import com.google.maps.android.compose.rememberMarkerState
 import com.google.maps.android.compose.rememberUpdatedMarkerState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -88,7 +87,7 @@ fun FriendPublicSessionsScreen(
             style = MaterialTheme.typography.headlineSmall
         )
 
-        TabRow(selectedTabIndex = selectedTab) {
+        PrimaryTabRow(selectedTabIndex = selectedTab) {
             Tab(
                 selected = selectedTab == 0,
                 onClick = { selectedTab = 0 },
@@ -224,7 +223,7 @@ private fun PublicSessionsMapList(
     ) {
         sessionsWithCoords.forEach { session ->
             val position = LatLng(session.startLat!!, session.startLon!!)
-            val markerState = rememberMarkerState(position = position)
+            val markerState = rememberUpdatedMarkerState(position = position)
             Marker(
                 state = markerState,
                 title = session.title,
