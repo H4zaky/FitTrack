@@ -378,7 +378,7 @@ private fun FriendRow(
                         enabled = friendUid != null
                     ) {
                         Icon(
-                            Icons.Outlined.DirectionsRun,
+                            Icons.AutoMirrored.Outlined.DirectionsRun,
                             contentDescription = stringResource(R.string.friends_view_activities)
                         )
                     }
