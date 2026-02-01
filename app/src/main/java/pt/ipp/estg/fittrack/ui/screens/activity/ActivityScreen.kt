@@ -37,7 +37,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import pt.ipp.estg.fittrack.core.media.LocalImageStore
 import pt.ipp.estg.fittrack.core.recognition.ActivityRecognitionController
 import pt.ipp.estg.fittrack.core.tracking.TrackingPrefs
 import pt.ipp.estg.fittrack.core.tracking.TrackingService
@@ -67,6 +71,7 @@ private fun detectedToActivityType(detected: String?): ActivityType? {
 @Composable
 fun ActivityScreen(userName: String) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
     // ---- Sensor luz (mantém a tua lógica) ----
     val sensorManager = remember {
@@ -123,13 +128,31 @@ fun ActivityScreen(userName: String) {
     val pickBefore = rememberLauncherForActivityResult(
         ActivityResultContracts.PickVisualMedia()
     ) { uri ->
-        TrackingPrefs.setPhotoBefore(context, uri?.toString())
+        scope.launch {
+            val stored = if (uri == null) {
+                null
+            } else {
+                withContext(Dispatchers.IO) {
+                    LocalImageStore.copyToLocal(context, uri, "before")
+                }
+            }
+            TrackingPrefs.setPhotoBefore(context, stored)
+        }
     }
 
     val pickAfter = rememberLauncherForActivityResult(
         ActivityResultContracts.PickVisualMedia()
     ) { uri ->
-        TrackingPrefs.setPhotoAfter(context, uri?.toString())
+        scope.launch {
+            val stored = if (uri == null) {
+                null
+            } else {
+                withContext(Dispatchers.IO) {
+                    LocalImageStore.copyToLocal(context, uri, "after")
+                }
+            }
+            TrackingPrefs.setPhotoAfter(context, stored)
+        }
     }
 
     val permLauncher = rememberLauncherForActivityResult(
