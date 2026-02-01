@@ -5,14 +5,14 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -33,6 +33,7 @@ fun HistoryScreen(
 ) {
     var items by remember { mutableStateOf<List<ActivitySessionEntity>>(emptyList()) }
     var selectedIds by remember { mutableStateOf(setOf<String>()) }
+    var selectedTab by remember { mutableStateOf(0) }
 
     LaunchedEffect(userId) {
         items = withContext(Dispatchers.IO) {
@@ -42,16 +43,59 @@ fun HistoryScreen(
 
     val fmt = remember { SimpleDateFormat("dd MMM • HH:mm", Locale.getDefault()) }
 
-    LazyColumn(
+    androidx.compose.foundation.layout.Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        item {
-            Text("Histórico", style = MaterialTheme.typography.headlineSmall)
+        Text("Histórico", style = MaterialTheme.typography.headlineSmall)
+
+        TabRow(selectedTabIndex = selectedTab) {
+            Tab(
+                selected = selectedTab == 0,
+                onClick = { selectedTab = 0 },
+                text = { Text("Lista") }
+            )
+            Tab(
+                selected = selectedTab == 1,
+                onClick = { selectedTab = 1 },
+                text = { Text("Mapa") }
+            )
         }
 
+        if (selectedTab == 0) {
+            HistoryListContent(
+                items = items,
+                selectedIds = selectedIds,
+                onSelectedIdsChange = { selectedIds = it },
+                onCompareSessions = onCompareSessions,
+                onOpenSession = onOpenSession,
+                fmt = fmt
+            )
+        } else {
+            HistoryMapList(
+                items = items,
+                onOpenSession = onOpenSession,
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+    }
+}
+
+@Composable
+private fun HistoryListContent(
+    items: List<ActivitySessionEntity>,
+    selectedIds: Set<String>,
+    onSelectedIdsChange: (Set<String>) -> Unit,
+    onCompareSessions: (String, String) -> Unit,
+    onOpenSession: (String) -> Unit,
+    fmt: SimpleDateFormat,
+) {
+    androidx.compose.foundation.lazy.LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
         if (items.isEmpty()) {
             item {
                 Text("Ainda não tens sessões.", color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -106,7 +150,7 @@ fun HistoryScreen(
                                 Checkbox(
                                     checked = selectedIds.contains(s.id),
                                     onCheckedChange = {
-                                        selectedIds = selectedIds.toMutableSet().apply {
+                                        onSelectedIdsChange(selectedIds.toMutableSet().apply {
                                             if (contains(s.id)) {
                                                 remove(s.id)
                                             } else {
@@ -115,7 +159,7 @@ fun HistoryScreen(
                                                 }
                                                 add(s.id)
                                             }
-                                        }
+                                        })
                                     }
                                 )
                                 Text("Comparar", style = MaterialTheme.typography.bodySmall)
