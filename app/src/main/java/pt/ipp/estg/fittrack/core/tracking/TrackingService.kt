@@ -349,7 +349,14 @@ class TrackingService : Service() {
                     val points = pointDao.getBySession(sid)
 
                     runCatching { FirebaseSync.uploadSession(uid, session) }
-                    runCatching { FirebaseSync.uploadTrackPoints(uid, sid, points) }
+                    runCatching {
+                        FirebaseSync.uploadTrackPoints(
+                            uid = uid,
+                            sessionId = sid,
+                            points = points,
+                            isPublic = session.isPublic
+                        )
+                    }
                     runCatching {
                         FirebaseSync.countSessionIntoLeaderboard(
                             uid = uid,

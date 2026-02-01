@@ -5,6 +5,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
 import com.google.firebase.firestore.Source
 import kotlinx.coroutines.tasks.await
+import pt.ipp.estg.fittrack.core.publicsessions.PublicSessionsRepository
 import pt.ipp.estg.fittrack.data.local.db.DbProvider
 import pt.ipp.estg.fittrack.data.local.entity.ActivitySessionEntity
 import pt.ipp.estg.fittrack.data.local.entity.TrackPointEntity
@@ -49,6 +50,12 @@ object FirebaseSync {
         )
 
         ref.set(data, SetOptions.merge()).await()
+
+        if (s.isPublic) {
+            PublicSessionsRepository.upsertSession(uid, s)
+        } else {
+            runCatching { PublicSessionsRepository.deleteSession(s.id) }
+        }
     }
     suspend fun deleteSession(uid: String, sessionId: String) {
         val sessionRef = fs.collection("users")
@@ -77,9 +84,16 @@ object FirebaseSync {
 
         // 2) apagar o doc da sessão
         sessionRef.delete().await()
+
+        runCatching { PublicSessionsRepository.deleteSession(sessionId) }
     }
 
-    suspend fun uploadTrackPoints(uid: String, sessionId: String, points: List<TrackPointEntity>) {
+    suspend fun uploadTrackPoints(
+        uid: String,
+        sessionId: String,
+        points: List<TrackPointEntity>,
+        isPublic: Boolean
+    ) {
         if (points.isEmpty()) return
 
         val base = fs.collection("users").document(uid)
@@ -105,6 +119,12 @@ object FirebaseSync {
                 )
             }
             batch.commit().await()
+        }
+
+        if (isPublic) {
+            PublicSessionsRepository.upsertPoints(sessionId, points)
+        } else {
+            runCatching { PublicSessionsRepository.deleteSession(sessionId) }
         }
     }
 
