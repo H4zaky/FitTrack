@@ -16,6 +16,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -33,6 +35,7 @@ import com.google.maps.android.compose.GoogleMap
 import com.google.maps.android.compose.Marker
 import com.google.maps.android.compose.Polyline
 import com.google.maps.android.compose.rememberCameraPositionState
+import com.google.maps.android.compose.rememberMarkerState
 import com.google.maps.android.compose.rememberUpdatedMarkerState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -55,6 +58,7 @@ fun FriendPublicSessionsScreen(
     var sessions by remember { mutableStateOf<List<PublicSession>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var selectedTab by remember { mutableStateOf(0) }
 
     LaunchedEffect(friendUid) {
         isLoading = true
@@ -84,6 +88,19 @@ fun FriendPublicSessionsScreen(
             style = MaterialTheme.typography.headlineSmall
         )
 
+        TabRow(selectedTabIndex = selectedTab) {
+            Tab(
+                selected = selectedTab == 0,
+                onClick = { selectedTab = 0 },
+                text = { Text("Lista") }
+            )
+            Tab(
+                selected = selectedTab == 1,
+                onClick = { selectedTab = 1 },
+                text = { Text("Mapa") }
+            )
+        }
+
         when {
             isLoading -> {
                 Row(
@@ -106,10 +123,18 @@ fun FriendPublicSessionsScreen(
                 )
             }
             else -> {
-                PublicSessionsList(
-                    sessions = sessions,
-                    onOpenSession = onOpenSession
-                )
+                if (selectedTab == 0) {
+                    PublicSessionsList(
+                        sessions = sessions,
+                        onOpenSession = onOpenSession
+                    )
+                } else {
+                    PublicSessionsMapList(
+                        sessions = sessions,
+                        onOpenSession = onOpenSession,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
             }
         }
     }
@@ -152,6 +177,63 @@ private fun PublicSessionsList(
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun PublicSessionsMapList(
+    sessions: List<PublicSession>,
+    onOpenSession: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val sessionsWithCoords = remember(sessions) {
+        sessions.filter { it.startLat != null && it.startLon != null }.take(200)
+    }
+    val cameraState = rememberCameraPositionState()
+    val fmt = remember { SimpleDateFormat("dd MMM • HH:mm", Locale.getDefault()) }
+
+    LaunchedEffect(sessionsWithCoords) {
+        val latLngs = sessionsWithCoords.map { LatLng(it.startLat!!, it.startLon!!) }
+        when {
+            latLngs.size >= 2 -> {
+                val bounds = LatLngBounds.builder().apply {
+                    latLngs.forEach { include(it) }
+                }.build()
+                cameraState.animate(CameraUpdateFactory.newLatLngBounds(bounds, 80))
+            }
+            latLngs.size == 1 -> {
+                cameraState.animate(CameraUpdateFactory.newLatLngZoom(latLngs.first(), 14f))
+            }
+        }
+    }
+
+    if (sessionsWithCoords.isEmpty()) {
+        Column(modifier = modifier.padding(12.dp)) {
+            Text(
+                text = "Sem pontos de início para mostrar.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        return
+    }
+
+    GoogleMap(
+        modifier = modifier.fillMaxSize(),
+        cameraPositionState = cameraState
+    ) {
+        sessionsWithCoords.forEach { session ->
+            val position = LatLng(session.startLat!!, session.startLon!!)
+            val markerState = rememberMarkerState(position = position)
+            Marker(
+                state = markerState,
+                title = session.title,
+                snippet = "${session.type} • ${fmt.format(Date(session.startTs))}",
+                onClick = {
+                    onOpenSession(session.id)
+                    true
+                }
+            )
         }
     }
 }
