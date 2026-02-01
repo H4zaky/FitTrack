@@ -24,6 +24,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.google.firebase.firestore.FieldValue
@@ -32,6 +33,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
+import pt.ipp.estg.fittrack.R
 import pt.ipp.estg.fittrack.core.contacts.ContactsUtil
 import pt.ipp.estg.fittrack.data.local.dao.FriendDao
 import pt.ipp.estg.fittrack.data.local.entity.FriendEntity
@@ -95,7 +97,11 @@ fun FriendsScreen(
         if (ownerUid.isBlank()) return
 
         if (n.isBlank() || p.isBlank()) {
-            Toast.makeText(context, "Nome/telefone inválidos.", Toast.LENGTH_SHORT).show()
+            Toast.makeText(
+                context,
+                context.getString(R.string.friends_invalid_name_phone),
+                Toast.LENGTH_SHORT
+            ).show()
             return
         }
 
@@ -108,7 +114,11 @@ fun FriendsScreen(
         // não deixar adicionar a si próprio
         if (friendUid != null && friendUid == ownerUid) {
             saving = false
-            Toast.makeText(context, "Não podes adicionar o teu próprio contacto.", Toast.LENGTH_SHORT).show()
+            Toast.makeText(
+                context,
+                context.getString(R.string.friends_cannot_add_self),
+                Toast.LENGTH_SHORT
+            ).show()
             return
         }
 
@@ -140,7 +150,7 @@ fun FriendsScreen(
         }
 
         saving = false
-        Toast.makeText(context, "Amigo adicionado.", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, context.getString(R.string.friends_added), Toast.LENGTH_SHORT).show()
         showAddSheet = false
         resetAddForm()
     }
@@ -159,7 +169,8 @@ fun FriendsScreen(
                     .await()
             }
 
-            Toast.makeText(context, "Removido.", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, context.getString(R.string.friends_removed), Toast.LENGTH_SHORT)
+                .show()
         }
     }
 
@@ -168,9 +179,13 @@ fun FriendsScreen(
             TopAppBar(
                 title = {
                     Column {
-                        Text("Amigos", maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Text(
-                            text = "${friends.size} no total",
+                            stringResource(R.string.friends_title),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            text = stringResource(R.string.friends_total, friends.size),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -180,7 +195,10 @@ fun FriendsScreen(
         },
         floatingActionButton = {
             FloatingActionButton(onClick = { showAddSheet = true }) {
-                Icon(Icons.Outlined.PersonAddAlt, contentDescription = "Adicionar amigo")
+                Icon(
+                    Icons.Outlined.PersonAddAlt,
+                    contentDescription = stringResource(R.string.friends_add_friend)
+                )
             }
         }
     ) { padding ->
@@ -198,8 +216,8 @@ fun FriendsScreen(
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 shape = RoundedCornerShape(14.dp),
-                label = { Text("Pesquisar") },
-                placeholder = { Text("Nome ou telefone") }
+                label = { Text(stringResource(R.string.friends_search)) },
+                placeholder = { Text(stringResource(R.string.friends_search_hint)) }
             )
 
             Spacer(Modifier.height(12.dp))
@@ -240,7 +258,7 @@ fun FriendsScreen(
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Text("Adicionar amigo", style = MaterialTheme.typography.titleLarge)
+                Text(stringResource(R.string.friends_add_friend), style = MaterialTheme.typography.titleLarge)
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -249,12 +267,12 @@ fun FriendsScreen(
                     OutlinedButton(
                         onClick = { pickContact.launch(null) },
                         modifier = Modifier.weight(1f)
-                    ) { Text("Dos contactos") }
+                    ) { Text(stringResource(R.string.friends_from_contacts)) }
 
                     OutlinedButton(
                         onClick = { resetAddForm() },
                         modifier = Modifier.weight(1f)
-                    ) { Text("Limpar") }
+                    ) { Text(stringResource(R.string.friends_clear)) }
                 }
 
                 OutlinedTextField(
@@ -262,7 +280,7 @@ fun FriendsScreen(
                     onValueChange = { name = it },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
-                    label = { Text("Nome") }
+                    label = { Text(stringResource(R.string.field_name)) }
                 )
 
                 OutlinedTextField(
@@ -270,7 +288,7 @@ fun FriendsScreen(
                     onValueChange = { phone = it },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
-                    label = { Text("Telefone") }
+                    label = { Text(stringResource(R.string.field_phone)) }
                 )
 
                 Button(
@@ -281,9 +299,9 @@ fun FriendsScreen(
                     if (saving) {
                         CircularProgressIndicator(strokeWidth = 2.dp, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(10.dp))
-                        Text("A guardar…")
+                        Text(stringResource(R.string.friends_saving))
                     } else {
-                        Text("Adicionar")
+                        Text(stringResource(R.string.friends_add))
                     }
                 }
 
@@ -300,6 +318,7 @@ private fun FriendRow(
     onRemove: () -> Unit
 ) {
     val context = LocalContext.current
+    val unknownInitial = stringResource(R.string.friends_unknown_initial)
     Surface(
         shape = RoundedCornerShape(16.dp),
         tonalElevation = 2.dp,
@@ -307,7 +326,7 @@ private fun FriendRow(
     ) {
         ListItem(
             leadingContent = {
-                val initial = name.trim().firstOrNull()?.uppercase() ?: "?"
+                val initial = name.trim().firstOrNull()?.uppercase() ?: unknownInitial
                 Box(
                     modifier = Modifier
                         .size(44.dp)
@@ -334,7 +353,10 @@ private fun FriendRow(
                             context.startActivity(intent)
                         }
                     ) {
-                        Icon(Icons.Outlined.Phone, contentDescription = "Ligar")
+                        Icon(
+                            Icons.Outlined.Phone,
+                            contentDescription = stringResource(R.string.friends_call)
+                        )
                     }
                     IconButton(
                         onClick = {
@@ -344,10 +366,16 @@ private fun FriendRow(
                             context.startActivity(intent)
                         }
                     ) {
-                        Icon(Icons.AutoMirrored.Outlined.Message, contentDescription = "SMS")
+                        Icon(
+                            Icons.AutoMirrored.Outlined.Message,
+                            contentDescription = stringResource(R.string.friends_sms)
+                        )
                     }
                     IconButton(onClick = onRemove) {
-                        Icon(Icons.Outlined.DeleteOutline, contentDescription = "Remover")
+                        Icon(
+                            Icons.Outlined.DeleteOutline,
+                            contentDescription = stringResource(R.string.btn_remove)
+                        )
                     }
                 }
             }
@@ -372,10 +400,10 @@ private fun EmptyFriendsState(
             tint = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Spacer(Modifier.height(10.dp))
-        Text("Ainda não tens amigos", style = MaterialTheme.typography.titleMedium)
+        Text(stringResource(R.string.friends_empty_title), style = MaterialTheme.typography.titleMedium)
         Spacer(Modifier.height(4.dp))
         Text(
-            "Adiciona amigos para comparar quilómetros no ranking.",
+            stringResource(R.string.friends_empty_body),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -383,7 +411,7 @@ private fun EmptyFriendsState(
         Button(onClick = onAdd) {
             Icon(Icons.Outlined.PersonAddAlt, contentDescription = null)
             Spacer(Modifier.width(8.dp))
-            Text("Adicionar amigo")
+            Text(stringResource(R.string.friends_add_friend))
         }
     }
 }

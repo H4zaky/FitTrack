@@ -47,4 +47,37 @@
     <string name="language">Idioma</string>
     <string name="language_english">English</string>
     <string name="language_portuguese">Português</string>
+
+    <string name="auth_create_account">Criar conta</string>
+    <string name="auth_sign_in">Entrar</string>
+    <string name="auth_name_required">Nome é obrigatório.</string>
+    <string name="auth_password">Password</string>
+    <string name="auth_register">Registar</string>
+    <string name="auth_login">Login</string>
+    <string name="auth_already_have_account">Já tenho conta</string>
+    <string name="auth_reset_sent">Email de recuperação enviado (se o email existir).</string>
+    <string name="auth_forgot_password">Esqueci-me da password</string>
+    <string name="auth_error_generic">Erro</string>
+
+    <string name="friends_invalid_name_phone">Nome/telefone inválidos.</string>
+    <string name="friends_cannot_add_self">Não podes adicionar o teu próprio contacto.</string>
+    <string name="friends_added">Amigo adicionado.</string>
+    <string name="friends_removed">Removido.</string>
+    <string name="friends_total">%1$d no total</string>
+    <string name="friends_add_friend">Adicionar amigo</string>
+    <string name="friends_search">Pesquisar</string>
+    <string name="friends_search_hint">Nome ou telefone</string>
+    <string name="friends_from_contacts">Dos contactos</string>
+    <string name="friends_clear">Limpar</string>
+    <string name="friends_saving">A guardar…</string>
+    <string name="friends_add">Adicionar</string>
+    <string name="friends_unknown_initial">?</string>
+    <string name="friends_call">Ligar</string>
+    <string name="friends_sms">SMS</string>
+    <string name="friends_empty_title">Ainda não tens amigos</string>
+    <string name="friends_empty_body">Adiciona amigos para comparar quilómetros no ranking.</string>
+
+    <string name="login_welcome">Bem-vindo 👋</string>
+    <string name="login_prompt_name">Como te chamas?</string>
+    <string name="login_continue">Continuar</string>
 </resources>

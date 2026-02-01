@@ -15,7 +15,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import pt.ipp.estg.fittrack.R
 
 @Composable
 fun LoginScreen(
@@ -29,25 +31,25 @@ fun LoginScreen(
         Modifier.padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Text("Bem-vindo 👋", style = MaterialTheme.typography.headlineSmall)
+        Text(stringResource(R.string.login_welcome), style = MaterialTheme.typography.headlineSmall)
 
         Card(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("Como te chamas?", style = MaterialTheme.typography.titleMedium)
+                Text(stringResource(R.string.login_prompt_name), style = MaterialTheme.typography.titleMedium)
 
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
-                    label = { Text("Nome") }
+                    label = { Text(stringResource(R.string.field_name)) }
                 )
 
                 Button(
                     onClick = { onContinue(name.trim()) },
                     modifier = Modifier.fillMaxWidth(),
                     enabled = canContinue
-                ) { Text("Continuar") }
+                ) { Text(stringResource(R.string.login_continue)) }
             }
         }
     }

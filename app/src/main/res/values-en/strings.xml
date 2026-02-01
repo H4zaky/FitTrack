@@ -47,4 +47,37 @@
     <string name="language">Language</string>
     <string name="language_english">English</string>
     <string name="language_portuguese">Portuguese</string>
+
+    <string name="auth_create_account">Create account</string>
+    <string name="auth_sign_in">Sign in</string>
+    <string name="auth_name_required">Name is required.</string>
+    <string name="auth_password">Password</string>
+    <string name="auth_register">Register</string>
+    <string name="auth_login">Login</string>
+    <string name="auth_already_have_account">I already have an account</string>
+    <string name="auth_reset_sent">Password reset email sent (if the email exists).</string>
+    <string name="auth_forgot_password">Forgot password</string>
+    <string name="auth_error_generic">Error</string>
+
+    <string name="friends_invalid_name_phone">Invalid name/phone.</string>
+    <string name="friends_cannot_add_self">You can’t add yourself as a contact.</string>
+    <string name="friends_added">Friend added.</string>
+    <string name="friends_removed">Removed.</string>
+    <string name="friends_total">%1$d total</string>
+    <string name="friends_add_friend">Add friend</string>
+    <string name="friends_search">Search</string>
+    <string name="friends_search_hint">Name or phone</string>
+    <string name="friends_from_contacts">From contacts</string>
+    <string name="friends_clear">Clear</string>
+    <string name="friends_saving">Saving…</string>
+    <string name="friends_add">Add</string>
+    <string name="friends_unknown_initial">?</string>
+    <string name="friends_call">Call</string>
+    <string name="friends_sms">SMS</string>
+    <string name="friends_empty_title">No friends yet</string>
+    <string name="friends_empty_body">Add friends to compare kilometers on the leaderboard.</string>
+
+    <string name="login_welcome">Welcome 👋</string>
+    <string name="login_prompt_name">What’s your name?</string>
+    <string name="login_continue">Continue</string>
 </resources>
