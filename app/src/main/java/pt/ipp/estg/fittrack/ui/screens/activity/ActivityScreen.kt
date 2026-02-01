@@ -469,7 +469,7 @@ fun ActivityScreen(
                                             val icon = when (t) {
                                                 ActivityType.WALKING -> Icons.AutoMirrored.Outlined.DirectionsWalk
                                                 ActivityType.RUNNING -> Icons.AutoMirrored.Outlined.DirectionsRun
-                                                ActivityType.CYCLING -> Icons.Outlined.DirectionsBike
+                                                ActivityType.CYCLING -> Icons.AutoMirrored.Outlined.DirectionsBike
                                                 ActivityType.OTHER -> Icons.Outlined.Flag
                                             }
                                             Icon(icon, contentDescription = null)
