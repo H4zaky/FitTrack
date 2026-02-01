@@ -93,6 +93,10 @@ fun HistoryScreen(
                     ) {
                         Text(s.title, style = MaterialTheme.typography.titleMedium)
                         Text("${s.type} • ${fmt.format(Date(s.startTs))}", style = MaterialTheme.typography.bodySmall)
+                        Text(
+                            if (s.isPublic) "Visibilidade: Público" else "Visibilidade: Privado",
+                            style = MaterialTheme.typography.bodySmall
+                        )
                         Text("Distância: %.2f km".format(s.distanceKm))
                         Row(
                             modifier = Modifier.fillMaxWidth(),

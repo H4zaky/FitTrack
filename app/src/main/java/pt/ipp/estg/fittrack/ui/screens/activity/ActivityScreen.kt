@@ -110,6 +110,8 @@ fun ActivityScreen(userName: String) {
     var activeSessionId by remember { mutableStateOf<String?>(TrackingPrefs.getActiveSessionId(context)) }
     var startTs by remember { mutableLongStateOf(TrackingPrefs.getActiveStartTs(context)) }
 
+    var isPublic by rememberSaveable { mutableStateOf(TrackingPrefs.getActiveIsPublic(context)) }
+
     var elapsedSec by remember { mutableLongStateOf(0L) }
     var distanceKm by remember { mutableDoubleStateOf(0.0) }
     var speedKmh by remember { mutableDoubleStateOf(0.0) }
@@ -176,12 +178,14 @@ fun ActivityScreen(userName: String) {
 
     fun startTracking() {
         val sid = UUID.randomUUID().toString()
+        TrackingPrefs.setActiveIsPublic(context, isPublic)
         val intent = Intent(context, TrackingService::class.java).apply {
             action = TrackingService.ACTION_START
             putExtra(TrackingService.EXTRA_SESSION_ID, sid)
             putExtra(TrackingService.EXTRA_TYPE, selectedType.label)
             putExtra(TrackingService.EXTRA_MODE, if (autoEnabled) "AUTO" else "MANUAL")
             putExtra(TrackingService.EXTRA_TITLE, "${selectedType.label} ($userName)")
+            putExtra(TrackingService.EXTRA_IS_PUBLIC, isPublic)
         }
         ContextCompat.startForegroundService(context, intent)
     }
@@ -469,6 +473,27 @@ fun ActivityScreen(userName: String) {
                                 )
                             }
                         }
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            Text("Público", style = MaterialTheme.typography.bodyLarge)
+                            Text(
+                                if (isPublic) "Sessão visível no histórico público."
+                                else "Sessão apenas visível para ti.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = isPublic,
+                            onCheckedChange = { isPublic = it },
+                            enabled = !isTracking
+                        )
                     }
                 }
             }

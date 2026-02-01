@@ -44,6 +44,7 @@ class TrackingService : Service() {
         const val EXTRA_TYPE = "type"
         const val EXTRA_MODE = "mode"
         const val EXTRA_TITLE = "title"
+        const val EXTRA_IS_PUBLIC = "is_public"
 
         private const val CHANNEL_ID = "tracking_channel"
         private const val NOTIF_ID = 1001
@@ -206,8 +207,10 @@ class TrackingService : Service() {
         val title = intent.getStringExtra(EXTRA_TITLE) ?: "Atividade"
         val type = intent.getStringExtra(EXTRA_TYPE) ?: "Walking"
         val mode = intent.getStringExtra(EXTRA_MODE) ?: "MANUAL"
+        val isPublic = intent.getBooleanExtra(EXTRA_IS_PUBLIC, false)
 
         TrackingPrefs.setActiveMode(this, mode)
+        TrackingPrefs.setActiveIsPublic(this, isPublic)
 
 
         val uid = TrackingPrefs.getUserId(this).orEmpty()
@@ -249,6 +252,7 @@ class TrackingService : Service() {
                 ActivitySessionEntity(
                     id = sid,
                     userId = uid,
+                    isPublic = isPublic,
                     title = title,
                     type = type,
                     startTs = startTs,
