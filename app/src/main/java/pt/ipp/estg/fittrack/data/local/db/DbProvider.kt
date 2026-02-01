@@ -146,6 +146,12 @@ object DbProvider {
         }
     }
 
+    private val MIGRATION_11_12 = object : Migration(11, 12) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE activity_sessions ADD COLUMN isPublic INTEGER NOT NULL DEFAULT 0")
+        }
+    }
+
     fun get(context: Context, userId: String? = null): FitTrackDb {
         val safeKey = userId
             ?.takeIf { it.isNotBlank() }
@@ -175,7 +181,8 @@ object DbProvider {
                 MIGRATION_7_8,
                 MIGRATION_8_9,
                 MIGRATION_9_10,
-                MIGRATION_10_11
+                MIGRATION_10_11,
+                MIGRATION_11_12
             )
             .build()
     }

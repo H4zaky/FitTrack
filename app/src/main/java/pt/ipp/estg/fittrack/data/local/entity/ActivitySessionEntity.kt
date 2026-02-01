@@ -8,6 +8,7 @@ data class ActivitySessionEntity(
     @PrimaryKey val id: String,
 
     val userId: String,
+    val isPublic: Boolean = false,
 
     val title: String,
     val type: String,
