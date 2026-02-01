@@ -184,6 +184,7 @@ fun AppShell(
                         firstSessionId = firstId,
                         secondSessionId = secondId,
                         activityDao = activityDao,
+                        friendDao = friendDao,
                         trackPointDao = trackPointDao
                     )
                 }

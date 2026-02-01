@@ -2,10 +2,7 @@ package pt.ipp.estg.fittrack.ui.history
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
@@ -16,31 +13,13 @@ import com.google.maps.android.compose.Marker
 import com.google.maps.android.compose.Polyline
 import com.google.maps.android.compose.rememberCameraPositionState
 import com.google.maps.android.compose.rememberUpdatedMarkerState
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import pt.ipp.estg.fittrack.data.local.dao.TrackPointDao
-import pt.ipp.estg.fittrack.data.local.entity.TrackPointEntity
 
 @Composable
 fun CompareHistoryMap(
-    firstSessionId: String,
-    secondSessionId: String,
-    trackPointDao: TrackPointDao,
+    firstPoints: List<TrackPointLike>,
+    secondPoints: List<TrackPointLike>,
     modifier: Modifier = Modifier
 ) {
-    var firstPoints by remember { mutableStateOf<List<TrackPointEntity>>(emptyList()) }
-    var secondPoints by remember { mutableStateOf<List<TrackPointEntity>>(emptyList()) }
-
-    LaunchedEffect(firstSessionId, secondSessionId) {
-        val result = withContext(Dispatchers.IO) {
-            val first = trackPointDao.getBySession(firstSessionId)
-            val second = trackPointDao.getBySession(secondSessionId)
-            first to second
-        }
-        firstPoints = result.first
-        secondPoints = result.second
-    }
-
     val firstLatLngs = remember(firstPoints) { firstPoints.map { LatLng(it.lat, it.lon) } }
     val secondLatLngs = remember(secondPoints) { secondPoints.map { LatLng(it.lat, it.lon) } }
     val allLatLngs = remember(firstLatLngs, secondLatLngs) { firstLatLngs + secondLatLngs }
