@@ -8,6 +8,7 @@ import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.ui.graphics.vector.ImageVector
+import pt.ipp.estg.fittrack.ui.screens.camera.PhotoTarget
 
 sealed class Screen(
     val route: String,
@@ -38,6 +39,11 @@ sealed class Screen(
     data object FriendPublicSessionDetail : Screen("friend-public-detail/{sessionId}/{name}", "Sessão pública") {
         fun route(sessionId: String, name: String) = "friend-public-detail/$sessionId/${Uri.encode(name)}"
         const val routePattern = "friend-public-detail/{sessionId}/{name}"
+    }
+
+    data object Camera : Screen("camera/{target}", "Câmara") {
+        fun route(target: PhotoTarget) = "camera/${target.routeValue}"
+        const val routePattern = "camera/{target}"
     }
 }
 

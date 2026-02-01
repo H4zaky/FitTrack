@@ -19,9 +19,7 @@ object LocalImageStore {
             MimeTypeMap.getSingleton().getExtensionFromMimeType(type)
         } ?: "jpg"
 
-        val imagesDir = File(context.filesDir, IMAGE_DIR).apply { mkdirs() }
-        val filename = "${prefix}_${System.currentTimeMillis()}_${UUID.randomUUID()}.$extension"
-        val target = File(imagesDir, filename)
+        val target = createImageFile(context, prefix, extension)
 
         return try {
             resolver.openInputStream(source)?.use { input ->
@@ -30,15 +28,25 @@ object LocalImageStore {
                 }
             } ?: return null
 
-            FileProvider.getUriForFile(
-                context,
-                "${context.packageName}.fileprovider",
-                target
-            ).toString()
+            uriForFile(context, target).toString()
         } catch (_: IOException) {
             null
         } catch (_: SecurityException) {
             null
         }
+    }
+
+    fun createImageFile(context: Context, prefix: String, extension: String = "jpg"): File {
+        val imagesDir = File(context.filesDir, IMAGE_DIR).apply { mkdirs() }
+        val filename = "${prefix}_${System.currentTimeMillis()}_${UUID.randomUUID()}.$extension"
+        return File(imagesDir, filename)
+    }
+
+    fun uriForFile(context: Context, file: File): Uri {
+        return FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.fileprovider",
+            file
+        )
     }
 }

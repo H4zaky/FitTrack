@@ -16,9 +16,12 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import kotlinx.coroutines.launch
+import pt.ipp.estg.fittrack.core.tracking.TrackingPrefs
 import pt.ipp.estg.fittrack.data.local.db.DbProvider
 import pt.ipp.estg.fittrack.ui.detail.SessionDetailScreen
 import pt.ipp.estg.fittrack.ui.screens.activity.ActivityScreen
+import pt.ipp.estg.fittrack.ui.screens.camera.CameraCaptureScreen
+import pt.ipp.estg.fittrack.ui.screens.camera.PhotoTarget
 import pt.ipp.estg.fittrack.ui.screens.friends.FriendsScreen
 import pt.ipp.estg.fittrack.ui.screens.history.CompareSessionsScreen
 import pt.ipp.estg.fittrack.ui.screens.history.HistoryScreen
@@ -60,8 +63,10 @@ fun AppShell(
         (currentRoute?.startsWith("friend-public/") == true)
     val isPublicDetailRoute = currentRoute == Screen.FriendPublicSessionDetail.routePattern ||
         (currentRoute?.startsWith("friend-public-detail/") == true)
+    val isCameraRoute = currentRoute == Screen.Camera.routePattern ||
+        (currentRoute?.startsWith("camera/") == true)
     val showBack = (currentRoute == Screen.Settings.route) || isDetailRoute || isCompareRoute ||
-        isPublicSessionsRoute || isPublicDetailRoute
+        isPublicSessionsRoute || isPublicDetailRoute || isCameraRoute
 
     ModalNavigationDrawer(
         drawerState = drawerState,
@@ -125,7 +130,12 @@ fun AppShell(
                 modifier = Modifier.padding(padding)
             ) {
                 composable(Screen.Activity.route) {
-                    ActivityScreen(userName = currentName)
+                    ActivityScreen(
+                        userName = currentName,
+                        onOpenCamera = { target ->
+                            navController.navigate(Screen.Camera.route(target))
+                        }
+                    )
                 }
 
                 composable(Screen.History.route) {
@@ -209,6 +219,21 @@ fun AppShell(
                     FriendPublicSessionDetailScreen(
                         sessionId = sessionId,
                         friendName = friendName
+                    )
+                }
+
+                composable(Screen.Camera.routePattern) { backStack ->
+                    val target = PhotoTarget.fromRoute(backStack.arguments?.getString("target"))
+                    CameraCaptureScreen(
+                        target = target,
+                        onPhotoCaptured = { uri ->
+                            when (target) {
+                                PhotoTarget.BEFORE -> TrackingPrefs.setPhotoBefore(context, uri)
+                                PhotoTarget.AFTER -> TrackingPrefs.setPhotoAfter(context, uri)
+                            }
+                            navController.popBackStack()
+                        },
+                        onCancel = { navController.popBackStack() }
                     )
                 }
             }

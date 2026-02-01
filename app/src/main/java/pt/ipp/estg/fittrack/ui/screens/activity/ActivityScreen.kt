@@ -10,7 +10,6 @@ import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -38,14 +37,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
-import kotlinx.coroutines.Dispatchers
+import coil.compose.AsyncImage
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import pt.ipp.estg.fittrack.core.media.LocalImageStore
 import pt.ipp.estg.fittrack.core.recognition.ActivityRecognitionController
 import pt.ipp.estg.fittrack.core.tracking.TrackingPrefs
 import pt.ipp.estg.fittrack.core.tracking.TrackingService
+import pt.ipp.estg.fittrack.ui.screens.camera.PhotoTarget
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -70,10 +67,11 @@ private fun detectedToActivityType(detected: String?): ActivityType? {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ActivityScreen(userName: String) {
+fun ActivityScreen(
+    userName: String,
+    onOpenCamera: (PhotoTarget) -> Unit
+) {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-
     // ---- Sensor luz (mantém a tua lógica) ----
     val sensorManager = remember {
         context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
@@ -127,35 +125,8 @@ fun ActivityScreen(userName: String) {
     val isTracking = activeSessionId != null
 
     // ---- Fotos ----
-    val pickBefore = rememberLauncherForActivityResult(
-        ActivityResultContracts.PickVisualMedia()
-    ) { uri ->
-        scope.launch {
-            val stored = if (uri == null) {
-                null
-            } else {
-                withContext(Dispatchers.IO) {
-                    LocalImageStore.copyToLocal(context, uri, "before")
-                }
-            }
-            TrackingPrefs.setPhotoBefore(context, stored)
-        }
-    }
-
-    val pickAfter = rememberLauncherForActivityResult(
-        ActivityResultContracts.PickVisualMedia()
-    ) { uri ->
-        scope.launch {
-            val stored = if (uri == null) {
-                null
-            } else {
-                withContext(Dispatchers.IO) {
-                    LocalImageStore.copyToLocal(context, uri, "after")
-                }
-            }
-            TrackingPrefs.setPhotoAfter(context, stored)
-        }
-    }
+    var beforePhoto by remember { mutableStateOf(TrackingPrefs.getPhotoBefore(context)) }
+    var afterPhoto by remember { mutableStateOf(TrackingPrefs.getPhotoAfter(context)) }
 
     val permLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -250,6 +221,8 @@ fun ActivityScreen(userName: String) {
                 speedKmh = 0.0
                 steps = 0
             }
+            beforePhoto = TrackingPrefs.getPhotoBefore(context)
+            afterPhoto = TrackingPrefs.getPhotoAfter(context)
             delay(1000)
         }
     }
@@ -548,9 +521,7 @@ fun ActivityScreen(userName: String) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         OutlinedButton(
                             onClick = {
-                                pickBefore.launch(
-                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                                )
+                                onOpenCamera(PhotoTarget.BEFORE)
                             },
                             modifier = Modifier.weight(1f),
                             enabled = !isTracking
@@ -558,13 +529,45 @@ fun ActivityScreen(userName: String) {
 
                         OutlinedButton(
                             onClick = {
-                                pickAfter.launch(
-                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                                )
+                                onOpenCamera(PhotoTarget.AFTER)
                             },
                             modifier = Modifier.weight(1f),
                             enabled = !isTracking
                         ) { Text("Foto depois") }
+                    }
+
+                    if (beforePhoto != null || afterPhoto != null) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            beforePhoto?.let { uri ->
+                                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Text("Antes", style = MaterialTheme.typography.bodyMedium)
+                                    AsyncImage(
+                                        model = uri,
+                                        contentDescription = "Foto antes",
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(120.dp)
+                                            .clip(RoundedCornerShape(12.dp))
+                                    )
+                                }
+                            }
+                            afterPhoto?.let { uri ->
+                                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Text("Depois", style = MaterialTheme.typography.bodyMedium)
+                                    AsyncImage(
+                                        model = uri,
+                                        contentDescription = "Foto depois",
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(120.dp)
+                                            .clip(RoundedCornerShape(12.dp))
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }

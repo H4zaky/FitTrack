@@ -19,6 +19,7 @@ material3 = "1.4.0"
 retrofit = "2.11.0"
 moshi = "1.15.2"
 okhttp = "4.12.0"
+cameraX = "1.4.1"
 
 
 [libraries]
@@ -53,6 +54,10 @@ retrofit-converter-moshi = { group = "com.squareup.retrofit2", name = "converter
 moshi-kotlin = { group = "com.squareup.moshi", name = "moshi-kotlin", version.ref = "moshi" }
 moshi-kotlin-codegen = { group = "com.squareup.moshi", name = "moshi-kotlin-codegen", version.ref = "moshi" }
 okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp" }
+androidx-camera-core = { group = "androidx.camera", name = "camera-core", version.ref = "cameraX" }
+androidx-camera-camera2 = { group = "androidx.camera", name = "camera-camera2", version.ref = "cameraX" }
+androidx-camera-lifecycle = { group = "androidx.camera", name = "camera-lifecycle", version.ref = "cameraX" }
+androidx-camera-view = { group = "androidx.camera", name = "camera-view", version.ref = "cameraX" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
