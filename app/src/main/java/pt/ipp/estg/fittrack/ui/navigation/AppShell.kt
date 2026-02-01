@@ -22,6 +22,8 @@ import pt.ipp.estg.fittrack.ui.screens.activity.ActivityScreen
 import pt.ipp.estg.fittrack.ui.screens.friends.FriendsScreen
 import pt.ipp.estg.fittrack.ui.screens.history.CompareSessionsScreen
 import pt.ipp.estg.fittrack.ui.screens.history.HistoryScreen
+import pt.ipp.estg.fittrack.ui.screens.public.FriendPublicSessionDetailScreen
+import pt.ipp.estg.fittrack.ui.screens.public.FriendPublicSessionsScreen
 import pt.ipp.estg.fittrack.ui.screens.settings.SettingsScreen
 import pt.ipp.estg.fittrack.ui.screens.social.SocialScreen
 
@@ -54,7 +56,12 @@ fun AppShell(
 
     val isDetailRoute = currentRoute == Screen.Detail.routePattern || (currentRoute?.startsWith("detail/") == true)
     val isCompareRoute = currentRoute == Screen.Compare.routePattern || (currentRoute?.startsWith("compare/") == true)
-    val showBack = (currentRoute == Screen.Settings.route) || isDetailRoute || isCompareRoute
+    val isPublicSessionsRoute = currentRoute == Screen.FriendPublicSessions.routePattern ||
+        (currentRoute?.startsWith("friend-public/") == true)
+    val isPublicDetailRoute = currentRoute == Screen.FriendPublicSessionDetail.routePattern ||
+        (currentRoute?.startsWith("friend-public-detail/") == true)
+    val showBack = (currentRoute == Screen.Settings.route) || isDetailRoute || isCompareRoute ||
+        isPublicSessionsRoute || isPublicDetailRoute
 
     ModalNavigationDrawer(
         drawerState = drawerState,
@@ -135,7 +142,10 @@ fun AppShell(
                 composable(Screen.Friends.route) {
                     FriendsScreen(
                         ownerUid = userId,
-                        friendDao = friendDao
+                        friendDao = friendDao,
+                        onViewActivities = { friendUid, friendName ->
+                            navController.navigate(Screen.FriendPublicSessions.route(friendUid, friendName))
+                        }
                     )
                 }
 
@@ -175,6 +185,29 @@ fun AppShell(
                         secondSessionId = secondId,
                         activityDao = activityDao,
                         trackPointDao = trackPointDao
+                    )
+                }
+
+                composable(Screen.FriendPublicSessions.routePattern) { backStack ->
+                    val friendUid = backStack.arguments?.getString("uid") ?: return@composable
+                    val friendName = backStack.arguments?.getString("name").orEmpty()
+                    FriendPublicSessionsScreen(
+                        friendUid = friendUid,
+                        friendName = friendName,
+                        onOpenSession = { sessionId ->
+                            navController.navigate(
+                                Screen.FriendPublicSessionDetail.route(sessionId, friendName)
+                            )
+                        }
+                    )
+                }
+
+                composable(Screen.FriendPublicSessionDetail.routePattern) { backStack ->
+                    val sessionId = backStack.arguments?.getString("sessionId") ?: return@composable
+                    val friendName = backStack.arguments?.getString("name").orEmpty()
+                    FriendPublicSessionDetailScreen(
+                        sessionId = sessionId,
+                        friendName = friendName
                     )
                 }
             }

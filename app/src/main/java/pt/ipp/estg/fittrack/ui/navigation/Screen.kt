@@ -1,5 +1,6 @@
 package pt.ipp.estg.fittrack.ui.navigation
 
+import android.net.Uri
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.DirectionsRun
 import androidx.compose.material.icons.filled.EmojiEvents
@@ -27,6 +28,16 @@ sealed class Screen(
     data object Compare : Screen("compare/{firstId}/{secondId}", "Comparar") {
         fun route(firstId: String, secondId: String) = "compare/$firstId/$secondId"
         const val routePattern = "compare/{firstId}/{secondId}"
+    }
+
+    data object FriendPublicSessions : Screen("friend-public/{uid}/{name}", "Atividades") {
+        fun route(uid: String, name: String) = "friend-public/$uid/${Uri.encode(name)}"
+        const val routePattern = "friend-public/{uid}/{name}"
+    }
+
+    data object FriendPublicSessionDetail : Screen("friend-public-detail/{sessionId}/{name}", "Sessão pública") {
+        fun route(sessionId: String, name: String) = "friend-public-detail/$sessionId/${Uri.encode(name)}"
+        const val routePattern = "friend-public-detail/{sessionId}/{name}"
     }
 }
 

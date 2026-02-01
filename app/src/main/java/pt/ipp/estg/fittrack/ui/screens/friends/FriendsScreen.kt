@@ -12,6 +12,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.DirectionsRun
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.Group
 import androidx.compose.material.icons.automirrored.outlined.Message
@@ -42,7 +43,8 @@ import pt.ipp.estg.fittrack.data.local.entity.FriendEntity
 @Composable
 fun FriendsScreen(
     ownerUid: String,
-    friendDao: FriendDao
+    friendDao: FriendDao,
+    onViewActivities: (String, String) -> Unit
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -237,7 +239,20 @@ fun FriendsScreen(
                         FriendRow(
                             name = f.name,
                             phone = f.phone,
-                            onRemove = { removeFriend(f) }
+                            friendUid = f.uid,
+                            onRemove = { removeFriend(f) },
+                            onViewActivities = {
+                                val uid = f.uid
+                                if (uid == null) {
+                                    Toast.makeText(
+                                        context,
+                                        context.getString(R.string.friends_no_account),
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                } else {
+                                    onViewActivities(uid, f.name)
+                                }
+                            }
                         )
                     }
                 }
@@ -315,7 +330,9 @@ fun FriendsScreen(
 private fun FriendRow(
     name: String,
     phone: String,
-    onRemove: () -> Unit
+    friendUid: String?,
+    onRemove: () -> Unit,
+    onViewActivities: () -> Unit
 ) {
     val context = LocalContext.current
     val unknownInitial = stringResource(R.string.friends_unknown_initial)
@@ -342,9 +359,29 @@ private fun FriendRow(
                 }
             },
             headlineContent = { Text(name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-            supportingContent = { Text(phone, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+            supportingContent = {
+                Column {
+                    Text(phone, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    if (friendUid == null) {
+                        Text(
+                            stringResource(R.string.friends_no_account),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            },
             trailingContent = {
                 Row {
+                    IconButton(
+                        onClick = onViewActivities,
+                        enabled = friendUid != null
+                    ) {
+                        Icon(
+                            Icons.Outlined.DirectionsRun,
+                            contentDescription = stringResource(R.string.friends_view_activities)
+                        )
+                    }
                     IconButton(
                         onClick = {
                             val intent = Intent(Intent.ACTION_DIAL).apply {
