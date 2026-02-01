@@ -2,10 +2,13 @@ package pt.ipp.estg.fittrack.ui.detail
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
@@ -18,7 +21,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -96,6 +101,44 @@ fun SessionDetailScreen(
         )
 
         ActivityDetailsCard(details = details, modifier = Modifier.fillMaxWidth())
+
+        Card(Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Fotos", style = MaterialTheme.typography.titleMedium)
+                if (s.photoBeforeUri == null && s.photoAfterUri == null) {
+                    Text("Sem fotos guardadas.")
+                } else {
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        s.photoBeforeUri?.let { uri ->
+                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Text("Antes", style = MaterialTheme.typography.bodyMedium)
+                                AsyncImage(
+                                    model = uri,
+                                    contentDescription = "Foto antes",
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(160.dp)
+                                        .clip(RoundedCornerShape(12.dp))
+                                )
+                            }
+                        }
+                        s.photoAfterUri?.let { uri ->
+                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Text("Depois", style = MaterialTheme.typography.bodyMedium)
+                                AsyncImage(
+                                    model = uri,
+                                    contentDescription = "Foto depois",
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(160.dp)
+                                        .clip(RoundedCornerShape(12.dp))
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
         Card(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
