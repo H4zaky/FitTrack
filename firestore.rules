@@ -1,0 +1,68 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    function isFriend(ownerUid) {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/users/$(ownerUid)/friends/$(request.auth.uid));
+    }
+
+    function isOwnerOrFriend(ownerUid) {
+      return isOwner(ownerUid) || isFriend(ownerUid);
+    }
+
+    match /users/{uid} {
+      allow read, write: if isOwner(uid);
+
+      match /friends/{friendId} {
+        allow read, write: if isOwner(uid);
+      }
+
+      match /sessions/{sessionId} {
+        allow read, write: if isOwner(uid);
+
+        match /points/{pointId} {
+          allow read, write: if isOwner(uid);
+        }
+      }
+    }
+
+    match /public_sessions/{sid} {
+      allow read: if isOwnerOrFriend(resource.data.ownerUid);
+      allow create: if isSignedIn()
+        && request.resource.data.ownerUid == request.auth.uid;
+      allow update, delete: if isSignedIn()
+        && resource.data.ownerUid == request.auth.uid
+        && request.resource.data.ownerUid == resource.data.ownerUid;
+
+      match /points/{pointId} {
+        allow read: if isSignedIn()
+          && isOwnerOrFriend(
+            get(/databases/$(database)/documents/public_sessions/$(sid)).data.ownerUid
+          );
+        allow create, update, delete: if isSignedIn()
+          && get(/databases/$(database)/documents/public_sessions/$(sid)).data.ownerUid
+          == request.auth.uid;
+      }
+    }
+
+    match /leaderboards/{month} {
+      match /users/{uid} {
+        allow read: if isSignedIn();
+        allow write: if isOwner(uid);
+      }
+
+      match /global/{docId} {
+        allow read: if isSignedIn();
+        allow write: if false;
+      }
+    }
+  }
+}
