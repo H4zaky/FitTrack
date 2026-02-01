@@ -21,7 +21,7 @@ import pt.ipp.estg.fittrack.data.local.db.DbProvider
 fun SocialScreen() {
     val context = LocalContext.current
     val myUid = TrackingPrefs.getUserId(context).orEmpty()
-    val month = remember { LeaderboardCacheRepository.monthKey() }
+    val week = remember { LeaderboardCacheRepository.weekKey() }
 
     val db = remember(myUid) { DbProvider.get(context, myUid) }
     val friendDao = remember { db.friendDao() }
@@ -37,14 +37,14 @@ fun SocialScreen() {
     }
 
     val global by LeaderboardCacheRepository
-        .observeGlobalTop(context, uidForDb = myUid, month = month, limit = 15)
+        .observeGlobalTop(context, uidForDb = myUid, month = week, limit = 15)
         .collectAsState(initial = emptyList())
 
     val friendsTop by LeaderboardCacheRepository
         .observeForUids(
             context,
             uidForDb = myUid,
-            month = month,
+            month = week,
             uids = (friendUids + myUid).distinct().filter { it.isNotBlank() }
         )
         .collectAsState(initial = emptyList())
@@ -63,11 +63,11 @@ fun SocialScreen() {
         Modifier.padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        Text("Rankings", style = MaterialTheme.typography.headlineSmall)
+        Text("Rankings semanais", style = MaterialTheme.typography.headlineSmall)
 
         Card(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("Global (Top 15)", style = MaterialTheme.typography.titleMedium)
+                Text("Global (Top 15 da semana)", style = MaterialTheme.typography.titleMedium)
                 if (global.isEmpty()) {
                     Text("Sem cache ainda. Abre com internet 1x para preencher.")
                 } else {
@@ -81,7 +81,7 @@ fun SocialScreen() {
 
         Card(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("Amigos + Eu", style = MaterialTheme.typography.titleMedium)
+                Text("Amigos + Eu (semana)", style = MaterialTheme.typography.titleMedium)
                 if (friendsTop.isEmpty()) {
                     Text("Sem cache de amigos (ou ainda não tens amigos).")
                 } else {

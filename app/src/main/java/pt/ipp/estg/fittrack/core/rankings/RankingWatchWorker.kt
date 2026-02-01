@@ -34,18 +34,18 @@ class RankingWatchWorker(
             uids = friendUids + myUid
         )
 
-        val month = LeaderboardCacheRepository.monthKey()
+        val week = LeaderboardCacheRepository.weekKey()
         val dao = db.leaderboardSnapshotDao()
 
-        val myDist = dao.getOne(month, myUid)?.distanceKm ?: 0.0
+        val myDist = dao.getOne(week, myUid)?.distanceKm ?: 0.0
 
         val bestFriend = friendUids
-            .mapNotNull { uid -> dao.getOne(month, uid) }
+            .mapNotNull { uid -> dao.getOne(week, uid) }
             .maxByOrNull { it.distanceKm }
             ?: return@withContext Result.success()
 
         val sp = ctx.getSharedPreferences("rank_watch", Context.MODE_PRIVATE)
-        val key = "rank_notified_${month}_${bestFriend.uid}"
+        val key = "rank_notified_${week}_${bestFriend.uid}"
         val already = sp.getBoolean(key, false)
 
         if (bestFriend.distanceKm > myDist && !already) {
@@ -53,7 +53,7 @@ class RankingWatchWorker(
             NotifUtil.notifyRankOvertaken(
                 ctx,
                 title = "Ultrapassado no ranking!",
-                body = "${bestFriend.name.ifBlank { "Um amigo" }} ultrapassou-te em distância este mês."
+                body = "${bestFriend.name.ifBlank { "Um amigo" }} ultrapassou-te em distância esta semana."
             )
         } else if (bestFriend.distanceKm <= myDist && already) {
             sp.edit().putBoolean(key, false).apply()
