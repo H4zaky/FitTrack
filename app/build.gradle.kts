@@ -101,6 +101,7 @@ dependencies {
     implementation(libs.androidx.camera.camera2)
     implementation(libs.androidx.camera.lifecycle)
     implementation(libs.androidx.camera.view)
+    implementation("com.google.guava:guava:33.3.1-android")
 
     // ✅ Retrofit + Moshi (Weather via REST)
     implementation(libs.retrofit)

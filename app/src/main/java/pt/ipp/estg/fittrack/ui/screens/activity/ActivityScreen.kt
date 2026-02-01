@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AutoMode
 import androidx.compose.material.icons.outlined.BatteryAlert
+import androidx.compose.material.icons.outlined.DirectionsBike
 import androidx.compose.material.icons.automirrored.outlined.DirectionsRun
 import androidx.compose.material.icons.automirrored.outlined.DirectionsWalk
 import androidx.compose.material.icons.outlined.Flag
@@ -468,6 +469,7 @@ fun ActivityScreen(
                                             val icon = when (t) {
                                                 ActivityType.WALKING -> Icons.AutoMirrored.Outlined.DirectionsWalk
                                                 ActivityType.RUNNING -> Icons.AutoMirrored.Outlined.DirectionsRun
+                                                ActivityType.CYCLING -> Icons.Outlined.DirectionsBike
                                                 ActivityType.OTHER -> Icons.Outlined.Flag
                                             }
                                             Icon(icon, contentDescription = null)
