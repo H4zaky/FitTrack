@@ -18,6 +18,7 @@ data class ActivityDetailsUi(
     val durationMin: Int,
     val avgSpeedKmh: Double? = null,
     val elevationGainM: Double? = null,
+    val steps: Long? = null,
     val start: String? = null,
     val end: String? = null,
     val weather: String? = null
@@ -46,6 +47,8 @@ fun ActivityDetailsCard(
             }
 
             details.elevationGainM?.let { Text("Elevação: +%.0f m".format(it)) }
+
+            details.steps?.let { Text("Passos: $it") }
 
             details.weather?.let {
                 Spacer(Modifier.height(8.dp))

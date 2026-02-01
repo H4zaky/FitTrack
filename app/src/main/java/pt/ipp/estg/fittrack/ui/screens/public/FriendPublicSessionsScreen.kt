@@ -333,6 +333,7 @@ fun FriendPublicSessionDetailScreen(
                     durationMin = s.durationMin,
                     avgSpeedKmh = if (s.avgSpeedMps > 0) s.avgSpeedMps * 3.6 else null,
                     elevationGainM = if (s.elevationGainM > 0) s.elevationGainM else null,
+                    steps = s.steps,
                     start = if (s.startLat != null && s.startLon != null) {
                         "(${s.startLat}, ${s.startLon})"
                     } else {

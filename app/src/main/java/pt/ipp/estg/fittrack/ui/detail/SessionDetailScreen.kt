@@ -89,6 +89,7 @@ fun SessionDetailScreen(
             durationMin = s.durationMin,
             avgSpeedKmh = if (s.avgSpeedMps > 0) s.avgSpeedMps * 3.6 else null,
             elevationGainM = if (s.elevationGainM > 0) s.elevationGainM else null,
+            steps = s.steps,
             start = s.startLat?.let { "(${s.startLat}, ${s.startLon})" },
             end = s.endLat?.let { "(${s.endLat}, ${s.endLon})" },
             weather = weatherText
